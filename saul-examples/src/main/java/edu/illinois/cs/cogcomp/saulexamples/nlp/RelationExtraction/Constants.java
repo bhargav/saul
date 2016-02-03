@@ -51,7 +51,9 @@ public class Constants {
 	
 	public static final String IC_PREFIX = "IC_";
 	public static final String IC_MENTION_VIEW = "IC_MENTION_VIEW";
-	
+
+	public static final String NONE_MENTION = "NULL";
+
 	public static Set<String> validStartPOS = new HashSet<String>();
 	static {
 		validStartPOS.add("D");

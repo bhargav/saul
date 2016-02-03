@@ -5,7 +5,7 @@ package edu.illinois.cs.cogcomp.saulexamples.nlp.RelationExtraction
   */
 object REConstants {
 
-  val NONE_MENTION = "NULL"
+  val NONE_MENTION = Constants.NONE_MENTION
 
   val EXIST_MENTION = "exist"
 }

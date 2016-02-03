@@ -3,10 +3,8 @@ package edu.illinois.cs.cogcomp.saulexamples.nlp.RelationExtraction
 import java.io._
 
 import edu.illinois.cs.cogcomp.core.datastructures.textannotation.TextAnnotation
-import edu.illinois.cs.cogcomp.core.io.IOUtils
 import edu.illinois.cs.cogcomp.saulexamples.nlp.RelationExtraction.data.DataLoader
 
-import scala.collection.JavaConversions._
 import scala.io.Source
 
 /**
@@ -16,13 +14,22 @@ object relationExtractionApp {
 
   def main(args: Array[String]): Unit = {
     val docs = loadDataFromCache.toList
-    val trainData = docs.flatMap(ta => ta.getView(Constants.GOLD_MENTION_VIEW).getConstituents)
 
-    println(s"Total Tokens = ${trainData.length}")
+    val numSentences = docs.map(_.getNumberOfSentences).sum
+    println(s"Total number of sentences = $numSentences")
 
-    REDataModel.tokens populate trainData
+    val testSize = (docs.length * 0.3).toInt
+    val trainDocs = docs.take(docs.length - testSize)
+    val testDocs = docs.takeRight(testSize)
 
-    REClassifiers.mentionTypeClassifier.crossValidation(5);
+    REDataModel.documents.populate(trainDocs)
+    REDataModel.documents.populate(testDocs, false)
+
+    println(s"Total number of tokens = ${REDataModel.tokens.count}")
+    println(s"Total number of valid relations = ${REDataModel.pairedRelations.count}")
+
+    REClassifiers.relationTypeFineClassifier.learn(5)
+    REClassifiers.relationTypeFineClassifier.test
   }
 
   def loadDataFromCache : Iterator[TextAnnotation] = {
