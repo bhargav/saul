@@ -1,8 +1,13 @@
 package edu.illinois.cs.cogcomp.saulexamples.nlp.RelationExtraction.data;
 
+import edu.illinois.cs.cogcomp.core.io.IOUtils;
+
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.net.URISyntaxException;
+import java.net.URL;
 import java.util.*;
 
 public final class ListManager {
@@ -90,20 +95,35 @@ public final class ListManager {
 		//readWikiTitleAttributeResource("edu/illinois/cs/cogcomp/illinoisRE/lists/TitleCategoriesSimplifiedWeighted.txt");
 	}
 
+    private static InputStream getResourceAsStream(String resourceFileName) {
+        InputStream is = null;
+        try {
+            List<URL> resources = IOUtils.lsResources(ClassLoader.getSystemClassLoader().getClass(), resourceFileName);
+            assert resources.size() == 1;
+
+            is = resources.get(0).openStream();
+        } catch (URISyntaxException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        return is;
+    }
 	
 	private void readCollectiveNouns() {
 		BufferedReader br = null;
-		InputStream is = ClassLoader.getSystemResourceAsStream("edu/illinois/cs/cogcomp/illinoisRE/lists/collectiveNouns");
-		if(is!=null) 
-			br = new BufferedReader(new InputStreamReader(is)); 
+		InputStream is = getResourceAsStream("edu/illinois/cs/cogcomp/illinoisRE/lists/collectiveNouns");
+		if(is!=null)
+			br = new BufferedReader(new InputStreamReader(is));
 		else {
 			System.out.println("Cannot get collectiveNouns as a resource!");
 			return;
 		}
-		
+
 		collectiveNouns = new HashSet<String>();
 		String line;
-		
+
 		try {
 			while((line = br.readLine()) != null) {
 				collectiveNouns.add(line.toLowerCase());
@@ -119,19 +139,19 @@ public final class ListManager {
 		else
 			return false;
 	}
-	
+
 	public void readPerson() {
 		person = new HashSet<String>();
 		personTitle = new HashSet<String>();
 		personName = new HashSet<String>();
 		personPronoun = new HashSet<String>();
 		personDBpedia = new HashSet<String>();
-		
+
 		readWnIndividual();		// recall=1511/12302=0.12282555682002927 precision=1511/2018=0.7487611496531219 f1=0.21103351955307265
 		readTitles();				// recall=2093/12302=0.17013493740855146 precision=2093/2196=0.9530965391621129 f1=0.288729479928266
 		readLevJobsTitles();		// recall=1799/12302=0.14623638432775157 precision=1799/1890=0.9518518518518518 f1=0.2535231116121759
 		readJobTitles();
-		
+
 //		readPersonNames();		// recall=3956/12302=0.32157372784913024 precision=3956/5737=0.6895590029632211 f1=0.43860524419313707
 //		readLevKnownName();		// recall=1936/12302=0.15737278491302228 precision=1936/2520=0.7682539682539683 f1=0.26123330184860344
 		//readLevKnownNamesBig();	// recall=641/12302=0.05210534872378475 precision=641/1199=0.5346121768140116 f1=0.09495592919043035
@@ -140,12 +160,12 @@ public final class ListManager {
 
 		readDBpediaPersonHyposFull();	// recall=2004/12302=0.16290034140790116 precision=2004/2636=0.7602427921092565 f1=0.26830901057705187
 		//readDBpediaPersonHypos();	// recall=608/12302=0.049422858071858235 precision=608/683=0.890190336749634 f1=0.09364651520985753	// subset of readDBpediaPersonHyposFull
-		
+
 		readPronoun();			// recall=3706/12302=0.301251828970899 precision=3706/4215=0.8792408066429419 f1=0.44874977296119145
-		
+
 		readPersonMisc();
-		
-		// (readTitles + readLevJobsTitles + readLevWikiPeople + readPronoun) + readLevKnownName + readDBpediaPersonHyposFull: 
+
+		// (readTitles + readLevJobsTitles + readLevWikiPeople + readPronoun) + readLevKnownName + readDBpediaPersonHyposFull:
 		// 		recall=8630/12302=0.7015119492765404 precision=8630/10528=0.8197188449848024 f1=0.7560227770477441
 		// + readWnIndividual: recall=8652/12302=0.7033002763778248 precision=8652/10620=0.8146892655367232 f1=0.7549079486955763
 		// + readPersonNames: recall=9289/12302=0.7550804747195577 precision=9289/12502=0.7430011198208286 f1=0.7489920980487017
@@ -176,40 +196,40 @@ public final class ListManager {
 		String target = n.toLowerCase();
 		if(personTitle.contains(target))
 			return true;
-		else 
+		else
 			return false;
 	}
 	public boolean isPersonName(String n) {
 		String target = n.toLowerCase();
 		if(personName.contains(target))
 			return true;
-		else 
+		else
 			return false;
 	}
 	public boolean isPersonPronoun(String n) {
 		String target = n.toLowerCase();
 		if(personPronoun.contains(target))
 			return true;
-		else 
+		else
 			return false;
 	}
 	public boolean isPersonDBpedia(String n) {
 		String target = n.toLowerCase();
 		if(personDBpedia.contains(target))
 			return true;
-		else 
+		else
 			return false;
 	}
 	private void readPersonResource(String path) {
 		BufferedReader br = null;
-		InputStream is = ClassLoader.getSystemResourceAsStream(path);
-		if(is!=null) 
-			br = new BufferedReader(new InputStreamReader(is)); 
+		InputStream is = getResourceAsStream(path);
+		if(is!=null)
+			br = new BufferedReader(new InputStreamReader(is));
 		else {
 			System.out.println("Cannot get " + path + " as a resource!");
 			return;
 		}
-		
+
 		String line;
 		try {
 			while((line = br.readLine()) != null) {
@@ -224,14 +244,14 @@ public final class ListManager {
 	}
 	private void readPersonTitleResource(String path) {
 		BufferedReader br = null;
-		InputStream is = ClassLoader.getSystemResourceAsStream(path);
-		if(is!=null) 
-			br = new BufferedReader(new InputStreamReader(is)); 
+		InputStream is = getResourceAsStream(path);
+		if(is!=null)
+			br = new BufferedReader(new InputStreamReader(is));
 		else {
 			System.out.println("Cannot get " + path + " as a resource!");
 			return;
 		}
-		
+
 		String line;
 		try {
 			while((line = br.readLine()) != null) {
@@ -246,14 +266,14 @@ public final class ListManager {
 	}
 	private void readPersonNameResource(String path) {
 		BufferedReader br = null;
-		InputStream is = ClassLoader.getSystemResourceAsStream(path);
-		if(is!=null) 
-			br = new BufferedReader(new InputStreamReader(is)); 
+		InputStream is = getResourceAsStream(path);
+		if(is!=null)
+			br = new BufferedReader(new InputStreamReader(is));
 		else {
 			System.out.println("Cannot get " + path + " as a resource!");
 			return;
 		}
-		
+
 		String line;
 		try {
 			while((line = br.readLine()) != null) {
@@ -268,14 +288,14 @@ public final class ListManager {
 	}
 	private void readPersonPronounResource(String path) {
 		BufferedReader br = null;
-		InputStream is = ClassLoader.getSystemResourceAsStream(path);
-		if(is!=null) 
-			br = new BufferedReader(new InputStreamReader(is)); 
+		InputStream is = getResourceAsStream(path);
+		if(is!=null)
+			br = new BufferedReader(new InputStreamReader(is));
 		else {
 			System.out.println("Cannot get " + path + " as a resource!");
 			return;
 		}
-		
+
 		String line;
 		try {
 			while((line = br.readLine()) != null) {
@@ -290,14 +310,14 @@ public final class ListManager {
 	}
 	private void readPersonDBpediaResource(String path) {
 		BufferedReader br = null;
-		InputStream is = ClassLoader.getSystemResourceAsStream(path);
-		if(is!=null) 
-			br = new BufferedReader(new InputStreamReader(is)); 
+		InputStream is = getResourceAsStream(path);
+		if(is!=null)
+			br = new BufferedReader(new InputStreamReader(is));
 		else {
 			System.out.println("Cannot get " + path + " as a resource!");
 			return;
 		}
-		
+
 		String line;
 		try {
 			while((line = br.readLine()) != null) {
@@ -349,8 +369,8 @@ public final class ListManager {
 	private void readPersonMisc() {
 		readPersonResource("edu/illinois/cs/cogcomp/illinoisRE/lists/person.misc");
 	}
-	
-	
+
+
 	public void readGPE() {
 		gpe = new HashSet<String>();
 		gpeCommonNouns = new HashSet<String>();
@@ -360,7 +380,7 @@ public final class ListManager {
 		gpeState = new HashSet<String>();
 		gpeCounty = new HashSet<String>();
 		gpeMajorArea = new HashSet<String>();
-		
+
 		readGPECommonNouns();
 		readGPECountryStateCounty();
 		readGPECity();
@@ -372,28 +392,28 @@ public final class ListManager {
 		//readGPEResource("edu/illinois/cs/cogcomp/illinoisRE/lists/gpe.countryStateCounty");
 		readGPEMajorArea();
 	}
-	
+
 	public boolean isGPE(String n) {
 		if(gpe.contains(n.toLowerCase()))
 			return true;
-		else 
+		else
 			return false;
 	}
 	public boolean isGPECommonNoun(String n) {
 		if(gpeCommonNouns.contains(n.toLowerCase()))
 			return true;
-		else 
+		else
 			return false;
 	}
 	public boolean isGPEMajorArea(String n) {
 		if(gpeMajorArea.contains(n.toLowerCase()))
 			return true;
-		else 
+		else
 			return false;
 	}
 	public boolean isGPECountryStateCounty(String n) {
 		String s = null;
-		if(n.contains(" ")) 
+		if(n.contains(" "))
 			s = n.toLowerCase();
 		else
 			s = n;
@@ -405,25 +425,25 @@ public final class ListManager {
 	public boolean isGPECity(String n) {
 		if(gpeCity.contains(n.toLowerCase()))
 			return true;
-		else 
+		else
 			return false;
 	}
 	public boolean isGPECountry(String n) {
 		if(gpeCountry.contains(n))
 			return true;
-		else 
+		else
 			return false;
 	}
 	public boolean isGPEState(String n) {
 		if(gpeState.contains(n.toLowerCase()))
 			return true;
-		else 
+		else
 			return false;
 	}
 	public boolean isGPECounty(String n) {
 		if(gpeCounty.contains(n.toLowerCase()))
 			return true;
-		else 
+		else
 			return false;
 	}
 	private void readGPECommonNouns() {
@@ -454,18 +474,18 @@ public final class ListManager {
 	private void readGPEMajorArea() {
 		readGPEMajorAreaResource("edu/illinois/cs/cogcomp/illinoisRE/lists/gpe.major_areas");
 	}
-	
-	
+
+
 	private void readGPEResource(String path) {
 		BufferedReader br = null;
-		InputStream is = ClassLoader.getSystemResourceAsStream(path);
-		if(is!=null) 
-			br = new BufferedReader(new InputStreamReader(is)); 
+		InputStream is = getResourceAsStream(path);
+		if(is!=null)
+			br = new BufferedReader(new InputStreamReader(is));
 		else {
 			System.out.println("Cannot get " + path + " as a resource!");
 			return;
 		}
-		
+
 		String line;
 		try {
 			while((line = br.readLine()) != null) {
@@ -480,14 +500,14 @@ public final class ListManager {
 	}
 	private void readGPECommonNounsResource(String path) {
 		BufferedReader br = null;
-		InputStream is = ClassLoader.getSystemResourceAsStream(path);
-		if(is!=null) 
-			br = new BufferedReader(new InputStreamReader(is)); 
+		InputStream is = getResourceAsStream(path);
+		if(is!=null)
+			br = new BufferedReader(new InputStreamReader(is));
 		else {
 			System.out.println("Cannot get " + path + " as a resource!");
 			return;
 		}
-		
+
 		String line;
 		try {
 			while((line = br.readLine()) != null) {
@@ -502,14 +522,14 @@ public final class ListManager {
 	}
 	private void readGPEMajorAreaResource(String path) {
 		BufferedReader br = null;
-		InputStream is = ClassLoader.getSystemResourceAsStream(path);
-		if(is!=null) 
-			br = new BufferedReader(new InputStreamReader(is)); 
+		InputStream is = getResourceAsStream(path);
+		if(is!=null)
+			br = new BufferedReader(new InputStreamReader(is));
 		else {
 			System.out.println("Cannot get " + path + " as a resource!");
 			return;
 		}
-		
+
 		String line;
 		try {
 			while((line = br.readLine()) != null) {
@@ -524,14 +544,14 @@ public final class ListManager {
 	}
 	private void readGPECountryStateCountyResource(String path) {
 		BufferedReader br = null;
-		InputStream is = ClassLoader.getSystemResourceAsStream(path);
-		if(is!=null) 
-			br = new BufferedReader(new InputStreamReader(is)); 
+		InputStream is = getResourceAsStream(path);
+		if(is!=null)
+			br = new BufferedReader(new InputStreamReader(is));
 		else {
 			System.out.println("Cannot get " + path + " as a resource!");
 			return;
 		}
-		
+
 		String line;
 		try {
 			while((line = br.readLine()) != null) {
@@ -549,14 +569,14 @@ public final class ListManager {
 	}
 	private void readGPECityResource(String path) {
 		BufferedReader br = null;
-		InputStream is = ClassLoader.getSystemResourceAsStream(path);
-		if(is!=null) 
-			br = new BufferedReader(new InputStreamReader(is)); 
+		InputStream is = getResourceAsStream(path);
+		if(is!=null)
+			br = new BufferedReader(new InputStreamReader(is));
 		else {
 			System.out.println("Cannot get " + path + " as a resource!");
 			return;
 		}
-		
+
 		String line;
 		try {
 			while((line = br.readLine()) != null) {
@@ -571,14 +591,14 @@ public final class ListManager {
 	}
 	private void readGPECountryResource(String path) {
 		BufferedReader br = null;
-		InputStream is = ClassLoader.getSystemResourceAsStream(path);
-		if(is!=null) 
-			br = new BufferedReader(new InputStreamReader(is)); 
+		InputStream is = getResourceAsStream(path);
+		if(is!=null)
+			br = new BufferedReader(new InputStreamReader(is));
 		else {
 			System.out.println("Cannot get " + path + " as a resource!");
 			return;
 		}
-		
+
 		String line;
 		try {
 			while((line = br.readLine()) != null) {
@@ -593,14 +613,14 @@ public final class ListManager {
 	}
 	private void readGPEStateResource(String path) {
 		BufferedReader br = null;
-		InputStream is = ClassLoader.getSystemResourceAsStream(path);
-		if(is!=null) 
-			br = new BufferedReader(new InputStreamReader(is)); 
+		InputStream is = getResourceAsStream(path);
+		if(is!=null)
+			br = new BufferedReader(new InputStreamReader(is));
 		else {
 			System.out.println("Cannot get " + path + " as a resource!");
 			return;
 		}
-		
+
 		String line;
 		try {
 			while((line = br.readLine()) != null) {
@@ -609,7 +629,7 @@ public final class ListManager {
 				if(line.contains("_"))
 					gpeState.add(line.toLowerCase());
 				else {
-					if(line.length()==2 || (line.length()==3 && line.endsWith(".")) ) 
+					if(line.length()==2 || (line.length()==3 && line.endsWith(".")) )
 						gpeState.add(line);
 					else
 						gpeState.add(line.toLowerCase());
@@ -622,14 +642,14 @@ public final class ListManager {
 	}
 	private void readGPECountyResource(String path) {
 		BufferedReader br = null;
-		InputStream is = ClassLoader.getSystemResourceAsStream(path);
-		if(is!=null) 
-			br = new BufferedReader(new InputStreamReader(is)); 
+		InputStream is = getResourceAsStream(path);
+		if(is!=null)
+			br = new BufferedReader(new InputStreamReader(is));
 		else {
 			System.out.println("Cannot get " + path + " as a resource!");
 			return;
 		}
-		
+
 		String line;
 		try {
 			while((line = br.readLine()) != null) {
@@ -642,47 +662,47 @@ public final class ListManager {
 			System.out.println(e);
 		}
 	}
-	
-	
+
+
 	public void readEthnicAndNationality() {
 		ethnicGroup = new HashSet<String>();
 		nationality = new HashSet<String>();
-		
+
 		readEthnicGroup();
 		readNationality();
 	}
-	
+
 	public boolean isEthnicGroup(String n) {
 		if(ethnicGroup.contains(n.toLowerCase()))
 			return true;
-		else 
+		else
 			return false;
 	}
-	
+
 	public boolean isNationality(String n) {
 		if(nationality.contains(n.toLowerCase()))
 			return true;
-		else 
+		else
 			return false;
 	}
-	
+
 	private void readEthnicGroup() {
 		readEthnicGroupResource("edu/illinois/cs/cogcomp/illinoisRE/lists/ethnicGroups");
 	}
 	private void readNationality() {
 		readNationalityResource("edu/illinois/cs/cogcomp/illinoisRE/lists/nationalities");
 	}
-	
+
 	private void readEthnicGroupResource(String path) {
 		BufferedReader br = null;
-		InputStream is = ClassLoader.getSystemResourceAsStream(path);
-		if(is!=null) 
-			br = new BufferedReader(new InputStreamReader(is)); 
+		InputStream is = getResourceAsStream(path);
+		if(is!=null)
+			br = new BufferedReader(new InputStreamReader(is));
 		else {
 			System.out.println("Cannot get " + path + " as a resource!");
 			return;
 		}
-		
+
 		String line;
 		try {
 			while((line = br.readLine()) != null) {
@@ -698,14 +718,14 @@ public final class ListManager {
 	}
 	private void readNationalityResource(String path) {
 		BufferedReader br = null;
-		InputStream is = ClassLoader.getSystemResourceAsStream(path);
-		if(is!=null) 
-			br = new BufferedReader(new InputStreamReader(is)); 
+		InputStream is = getResourceAsStream(path);
+		if(is!=null)
+			br = new BufferedReader(new InputStreamReader(is));
 		else {
 			System.out.println("Cannot get " + path + " as a resource!");
 			return;
 		}
-		
+
 		String line;
 		try {
 			while((line = br.readLine()) != null) {
@@ -718,7 +738,7 @@ public final class ListManager {
 			System.out.println(e);
 		}
 	}
-	
+
 	public void readOrg() {
 		orgGovtMultiWords = new HashSet<String>();
 		orgGovtAbbrev = new HashSet<String>();
@@ -727,7 +747,7 @@ public final class ListManager {
 		orgGeneric = new HashSet<String>();
 		orgPolitical = new HashSet<String>();
 		orgTerrorist = new HashSet<String>();
-		
+
 		readOrgGovt();
 		readOrgCommercial();
 		readOrgGeneric();
@@ -738,11 +758,11 @@ public final class ListManager {
 	public boolean isOrgGovtMultiWords(String n) {
 		if(orgGovtMultiWords.contains(n.toLowerCase()))
 			return true;
-		else 
+		else
 			return false;
 	}
 	*/
-	
+
 	public boolean isOrgGovtMultiWords(String n) {
 		boolean found = false;
 		String t = n.toLowerCase();
@@ -759,33 +779,33 @@ public final class ListManager {
 	public boolean isOrgGovtAbbrev(String n) {
 		if(orgGovtAbbrev.contains(n))
 			return true;
-		else 
+		else
 			return false;
 	}
 	public boolean isOrgGovtSingleWord(String n) {
 		if(orgGovtSingleWord.contains(n))
 			return true;
-		else 
+		else
 			return false;
 	}
 	private void readOrgGovt() {
 		readOrgGovtMultiWordsResource("edu/illinois/cs/cogcomp/illinoisRE/lists/US.govt.multiWords");
 		readOrgGovtMultiWordsResource("edu/illinois/cs/cogcomp/illinoisRE/lists/UK.govt");
 		readOrgGovtMultiWordsResource("edu/illinois/cs/cogcomp/illinoisRE/lists/HK.govt");
-		
+
 		readOrgGovtAbbrevResource("edu/illinois/cs/cogcomp/illinoisRE/lists/US.govt.abbrev");
 		readOrgGovtSingleWordResource("edu/illinois/cs/cogcomp/illinoisRE/lists/US.govt.singleWord");
 	}
 	private void readOrgGovtMultiWordsResource(String path) {
 		BufferedReader br = null;
-		InputStream is = ClassLoader.getSystemResourceAsStream(path);
-		if(is!=null) 
-			br = new BufferedReader(new InputStreamReader(is)); 
+		InputStream is = getResourceAsStream(path);
+		if(is!=null)
+			br = new BufferedReader(new InputStreamReader(is));
 		else {
 			System.out.println("Cannot get " + path + " as a resource!");
 			return;
 		}
-		
+
 		String line;
 		try {
 			while((line = br.readLine()) != null) {
@@ -800,14 +820,14 @@ public final class ListManager {
 	}
 	private void readOrgGovtAbbrevResource(String path) {
 		BufferedReader br = null;
-		InputStream is = ClassLoader.getSystemResourceAsStream(path);
-		if(is!=null) 
-			br = new BufferedReader(new InputStreamReader(is)); 
+		InputStream is = getResourceAsStream(path);
+		if(is!=null)
+			br = new BufferedReader(new InputStreamReader(is));
 		else {
 			System.out.println("Cannot get " + path + " as a resource!");
 			return;
 		}
-		
+
 		String line;
 		try {
 			while((line = br.readLine()) != null) {
@@ -821,14 +841,14 @@ public final class ListManager {
 	}
 	private void readOrgGovtSingleWordResource(String path) {
 		BufferedReader br = null;
-		InputStream is = ClassLoader.getSystemResourceAsStream(path);
-		if(is!=null) 
-			br = new BufferedReader(new InputStreamReader(is)); 
+		InputStream is = getResourceAsStream(path);
+		if(is!=null)
+			br = new BufferedReader(new InputStreamReader(is));
 		else {
 			System.out.println("Cannot get " + path + " as a resource!");
 			return;
 		}
-		
+
 		String line;
 		try {
 			while((line = br.readLine()) != null) {
@@ -840,7 +860,7 @@ public final class ListManager {
 			System.out.println(e);
 		}
 	}
-	
+
 	public boolean isOrgCommercial(String n) {
 		if(orgCommercial.contains(n))
 			return true;
@@ -853,14 +873,14 @@ public final class ListManager {
 	}
 	private void readOrgCommercialResource(String path) {
 		BufferedReader br = null;
-		InputStream is = ClassLoader.getSystemResourceAsStream(path);
-		if(is!=null) 
-			br = new BufferedReader(new InputStreamReader(is)); 
+		InputStream is = getResourceAsStream(path);
+		if(is!=null)
+			br = new BufferedReader(new InputStreamReader(is));
 		else {
 			System.out.println("Cannot get " + path + " as a resource!");
 			return;
 		}
-		
+
 		String line;
 		try {
 			while((line = br.readLine()) != null) {
@@ -874,8 +894,8 @@ public final class ListManager {
 			System.out.println(e);
 		}
 	}
-	
-	
+
+
 	public boolean isOrgGeneric(String n) {
 		boolean found = false;
 		String t = n.trim();
@@ -895,14 +915,14 @@ public final class ListManager {
 	}
 	private void readOrgGenericResource(String path) {
 		BufferedReader br = null;
-		InputStream is = ClassLoader.getSystemResourceAsStream(path);
-		if(is!=null) 
-			br = new BufferedReader(new InputStreamReader(is)); 
+		InputStream is = getResourceAsStream(path);
+		if(is!=null)
+			br = new BufferedReader(new InputStreamReader(is));
 		else {
 			System.out.println("Cannot get " + path + " as a resource!");
 			return;
 		}
-		
+
 		String line;
 		try {
 			while((line = br.readLine()) != null) {
@@ -915,8 +935,8 @@ public final class ListManager {
 			System.out.println(e);
 		}
 	}
-	
-	
+
+
 	public boolean isOrgPolitical(String n) {
 		boolean found = false;
 		String t = n.trim();
@@ -936,14 +956,14 @@ public final class ListManager {
 	}
 	private void readOrgPoliticalResource(String path) {
 		BufferedReader br = null;
-		InputStream is = ClassLoader.getSystemResourceAsStream(path);
-		if(is!=null) 
-			br = new BufferedReader(new InputStreamReader(is)); 
+		InputStream is = getResourceAsStream(path);
+		if(is!=null)
+			br = new BufferedReader(new InputStreamReader(is));
 		else {
 			System.out.println("Cannot get " + path + " as a resource!");
 			return;
 		}
-		
+
 		String line;
 		try {
 			while((line = br.readLine()) != null) {
@@ -956,7 +976,7 @@ public final class ListManager {
 			System.out.println(e);
 		}
 	}
-	
+
 	public boolean isOrgTerrorist(String n) {
 		boolean found = false;
 		String t = n.trim();
@@ -976,14 +996,14 @@ public final class ListManager {
 	}
 	private void readOrgTerroristResource(String path) {
 		BufferedReader br = null;
-		InputStream is = ClassLoader.getSystemResourceAsStream(path);
-		if(is!=null) 
-			br = new BufferedReader(new InputStreamReader(is)); 
+		InputStream is = getResourceAsStream(path);
+		if(is!=null)
+			br = new BufferedReader(new InputStreamReader(is));
 		else {
 			System.out.println("Cannot get " + path + " as a resource!");
 			return;
 		}
-		
+
 		String line;
 		try {
 			while((line = br.readLine()) != null) {
@@ -996,9 +1016,9 @@ public final class ListManager {
 			System.out.println(e);
 		}
 	}
-	
-	
-	
+
+
+
 	public void readFac() {
 		facBarrier = new HashSet<String>();
 		facBuilding = new HashSet<String>();
@@ -1007,7 +1027,7 @@ public final class ListManager {
 		facPlant = new HashSet<String>();
 		facBuildingSubArea = new HashSet<String>();
 		facGeneric = new HashSet<String>();
-		
+
 		readFacBarrier();
 		readFacBuilding();
 		readFacConduit();
@@ -1016,47 +1036,47 @@ public final class ListManager {
 		readFacBuildingSubArea();
 		readFacGeneric();
 	}
-	
+
 	public boolean isFacBarrier(String n) {
 		if(facBarrier.contains(n.toLowerCase()))
 			return true;
-		else 
+		else
 			return false;
 	}
 	public boolean isFacBuilding(String n) {
 		if(facBuilding.contains(n.toLowerCase()))
 			return true;
-		else 
+		else
 			return false;
 	}
 	public boolean isFacConduit(String n) {
 		if(facConduit.contains(n.toLowerCase()))
 			return true;
-		else 
+		else
 			return false;
 	}
 	public boolean isFacPath(String n) {
 		if(facPath.contains(n.toLowerCase()))
 			return true;
-		else 
+		else
 			return false;
 	}
 	public boolean isFacPlant(String n) {
 		if(facPlant.contains(n.toLowerCase()))
 			return true;
-		else 
+		else
 			return false;
 	}
 	public boolean isFacBuildingSubArea(String n) {
 		if(facBuildingSubArea.contains(n.toLowerCase()))
 			return true;
-		else 
+		else
 			return false;
 	}
 	public boolean isFacGeneric(String n) {
 		if(facGeneric.contains(n.toLowerCase()))
 			return true;
-		else 
+		else
 			return false;
 	}
 	private void readFacBarrier() {
@@ -1084,14 +1104,14 @@ public final class ListManager {
 	}
 	private void readFacBarrierResource(String path) {
 		BufferedReader br = null;
-		InputStream is = ClassLoader.getSystemResourceAsStream(path);
-		if(is!=null) 
-			br = new BufferedReader(new InputStreamReader(is)); 
+		InputStream is = getResourceAsStream(path);
+		if(is!=null)
+			br = new BufferedReader(new InputStreamReader(is));
 		else {
 			System.out.println("Cannot get " + path + " as a resource!");
 			return;
 		}
-		
+
 		String line;
 		try {
 			while((line = br.readLine()) != null) {
@@ -1106,14 +1126,14 @@ public final class ListManager {
 	}
 	private void readFacBuildingResource(String path) {
 		BufferedReader br = null;
-		InputStream is = ClassLoader.getSystemResourceAsStream(path);
-		if(is!=null) 
-			br = new BufferedReader(new InputStreamReader(is)); 
+		InputStream is = getResourceAsStream(path);
+		if(is!=null)
+			br = new BufferedReader(new InputStreamReader(is));
 		else {
 			System.out.println("Cannot get " + path + " as a resource!");
 			return;
 		}
-		
+
 		String line;
 		try {
 			while((line = br.readLine()) != null) {
@@ -1128,14 +1148,14 @@ public final class ListManager {
 	}
 	private void readFacConduitResource(String path) {
 		BufferedReader br = null;
-		InputStream is = ClassLoader.getSystemResourceAsStream(path);
-		if(is!=null) 
-			br = new BufferedReader(new InputStreamReader(is)); 
+		InputStream is = getResourceAsStream(path);
+		if(is!=null)
+			br = new BufferedReader(new InputStreamReader(is));
 		else {
 			System.out.println("Cannot get " + path + " as a resource!");
 			return;
 		}
-		
+
 		String line;
 		try {
 			while((line = br.readLine()) != null) {
@@ -1150,14 +1170,14 @@ public final class ListManager {
 	}
 	private void readFacPathResource(String path) {
 		BufferedReader br = null;
-		InputStream is = ClassLoader.getSystemResourceAsStream(path);
-		if(is!=null) 
-			br = new BufferedReader(new InputStreamReader(is)); 
+		InputStream is = getResourceAsStream(path);
+		if(is!=null)
+			br = new BufferedReader(new InputStreamReader(is));
 		else {
 			System.out.println("Cannot get " + path + " as a resource!");
 			return;
 		}
-		
+
 		String line;
 		try {
 			while((line = br.readLine()) != null) {
@@ -1172,14 +1192,14 @@ public final class ListManager {
 	}
 	private void readFacPlantResource(String path) {
 		BufferedReader br = null;
-		InputStream is = ClassLoader.getSystemResourceAsStream(path);
-		if(is!=null) 
-			br = new BufferedReader(new InputStreamReader(is)); 
+		InputStream is = getResourceAsStream(path);
+		if(is!=null)
+			br = new BufferedReader(new InputStreamReader(is));
 		else {
 			System.out.println("Cannot get " + path + " as a resource!");
 			return;
 		}
-		
+
 		String line;
 		try {
 			while((line = br.readLine()) != null) {
@@ -1194,14 +1214,14 @@ public final class ListManager {
 	}
 	private void readFacBuildingSubAreaResource(String path) {
 		BufferedReader br = null;
-		InputStream is = ClassLoader.getSystemResourceAsStream(path);
-		if(is!=null) 
-			br = new BufferedReader(new InputStreamReader(is)); 
+		InputStream is = getResourceAsStream(path);
+		if(is!=null)
+			br = new BufferedReader(new InputStreamReader(is));
 		else {
 			System.out.println("Cannot get " + path + " as a resource!");
 			return;
 		}
-		
+
 		String line;
 		try {
 			while((line = br.readLine()) != null) {
@@ -1216,14 +1236,14 @@ public final class ListManager {
 	}
 	private void readFacGenericResource(String path) {
 		BufferedReader br = null;
-		InputStream is = ClassLoader.getSystemResourceAsStream(path);
-		if(is!=null) 
-			br = new BufferedReader(new InputStreamReader(is)); 
+		InputStream is = getResourceAsStream(path);
+		if(is!=null)
+			br = new BufferedReader(new InputStreamReader(is));
 		else {
 			System.out.println("Cannot get " + path + " as a resource!");
 			return;
 		}
-		
+
 		String line;
 		try {
 			while((line = br.readLine()) != null) {
@@ -1236,11 +1256,11 @@ public final class ListManager {
 			System.out.println(e);
 		}
 	}
-	
+
 
 	private void readWea() {
 		wea = new HashSet<String>();
-		
+
 		readWeaResource("edu/illinois/cs/cogcomp/illinoisRE/lists/wea.wordnet");
 		readWeaResource("edu/illinois/cs/cogcomp/illinoisRE/lists/wea.aircraft");
 		readWeaResource("edu/illinois/cs/cogcomp/illinoisRE/lists/wea.artillery");
@@ -1252,19 +1272,19 @@ public final class ListManager {
 	public boolean isWea(String n) {
 		if(wea.contains(n))
 			return true;
-		else 
+		else
 			return false;
 	}
 	private void readWeaResource(String path) {
 		BufferedReader br = null;
-		InputStream is = ClassLoader.getSystemResourceAsStream(path);
-		if(is!=null) 
-			br = new BufferedReader(new InputStreamReader(is)); 
+		InputStream is = getResourceAsStream(path);
+		if(is!=null)
+			br = new BufferedReader(new InputStreamReader(is));
 		else {
 			System.out.println("Cannot get " + path + " as a resource!");
 			return;
 		}
-		
+
 		String line;
 		try {
 			while((line = br.readLine()) != null) {
@@ -1277,29 +1297,29 @@ public final class ListManager {
 			System.out.println(e);
 		}
 	}
-	
-	
+
+
 	private void readVeh() {
 		veh = new HashSet<String>();
-		
+
 		readVehResource("edu/illinois/cs/cogcomp/illinoisRE/lists/veh.wordnet");
 	}
 	public boolean isVeh(String n) {
 		if(veh.contains(n))
 			return true;
-		else 
+		else
 			return false;
 	}
 	private void readVehResource(String path) {
 		BufferedReader br = null;
-		InputStream is = ClassLoader.getSystemResourceAsStream(path);
-		if(is!=null) 
-			br = new BufferedReader(new InputStreamReader(is)); 
+		InputStream is = getResourceAsStream(path);
+		if(is!=null)
+			br = new BufferedReader(new InputStreamReader(is));
 		else {
 			System.out.println("Cannot get " + path + " as a resource!");
 			return;
 		}
-		
+
 		String line;
 		try {
 			while((line = br.readLine()) != null) {
@@ -1312,15 +1332,15 @@ public final class ListManager {
 			System.out.println(e);
 		}
 	}
-	
-	
+
+
 	public Set<String> getAttributeForWikiTitle(String title) {
 		return wikiTitleAttributes.get(title);
 	}
-	
+
 	private void readWikiTitleAttributeResource(String path) {
 		BufferedReader br = null;
-		InputStream is = ClassLoader.getSystemResourceAsStream(path);
+		InputStream is = getResourceAsStream(path);
 		if(is!=null) 
 			br = new BufferedReader(new InputStreamReader(is)); 
 		else {
