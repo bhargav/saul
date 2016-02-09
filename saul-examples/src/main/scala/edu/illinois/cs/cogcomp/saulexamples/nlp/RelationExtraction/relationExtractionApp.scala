@@ -2,8 +2,10 @@ package edu.illinois.cs.cogcomp.saulexamples.nlp.RelationExtraction
 
 import java.io._
 
-import edu.illinois.cs.cogcomp.core.datastructures.textannotation.TextAnnotation
-import edu.illinois.cs.cogcomp.saulexamples.nlp.RelationExtraction.data.DataLoader
+import edu.illinois.cs.cogcomp.core.datastructures.textannotation.{TextAnnotation, SpanLabelView}
+import edu.illinois.cs.cogcomp.illinoisRE.common.{Document, ResourceManager, Constants}
+import edu.illinois.cs.cogcomp.illinoisRE.data.DataLoader
+import edu.illinois.cs.cogcomp.illinoisRE.mention.{MentionTyper, MentionDetector}
 
 import scala.io.Source
 
@@ -18,18 +20,52 @@ object relationExtractionApp {
     val numSentences = docs.map(_.getNumberOfSentences).sum
     println(s"Total number of sentences = $numSentences")
 
-    val testSize = (docs.length * 0.3).toInt
-    val trainDocs = docs.take(docs.length - testSize)
-    val testDocs = docs.takeRight(testSize)
+    docs.foreach(originalTA => {
+      val tempDoc: Document = new Document(originalTA)
+      MentionDetector.labelDocMentionCandidates(tempDoc)
+      assert(originalTA.equals(tempDoc.getTextAnnotation))
 
-    REDataModel.documents.populate(trainDocs)
-    REDataModel.documents.populate(testDocs, false)
+      createTypedCandidateMentions(originalTA, originalTA.getView(Constants.GOLD_MENTION_VIEW).asInstanceOf[SpanLabelView])
+    })
 
-    println(s"Total number of tokens = ${REDataModel.tokens.count}")
-    println(s"Total number of valid relations = ${REDataModel.pairedRelations.count}")
+    val numFolds = 5
+    for (fold <- 0 until numFolds) {
+      println(s"Running fold $fold")
 
-    REClassifiers.relationTypeFineClassifier.learn(5)
-    REClassifiers.relationTypeFineClassifier.test
+      val zipDocs = docs.zipWithIndex
+      val trainDocs = zipDocs.filter({case (doc, index) => index % numFolds == fold}).map(_._1)
+      val testDocs = zipDocs.filterNot({case (doc, index) => index % numFolds == fold}).map(_._1)
+
+      println(trainDocs.length)
+      println(testDocs.length)
+
+      REDataModel.clearInstances
+      REDataModel.documents.populate(trainDocs)
+      REDataModel.documents.populate(testDocs, false)
+
+      REClassifiers.mentionTypeClassifier.forget
+      REClassifiers.mentionTypeClassifier.learn(1)
+      REClassifiers.mentionTypeClassifier.test
+    }
+  }
+
+  def createTypedCandidateMentions(ta: TextAnnotation, gold_typed_view: SpanLabelView) {
+    val mentionView: SpanLabelView = ta.getView(Constants.CANDIDATE_MENTION_VIEW).asInstanceOf[SpanLabelView]
+    val typedView: SpanLabelView = new SpanLabelView(Constants.TYPED_CANDIDATE_MENTION_VIEW, "alignFromGold", ta, 1.0, true)
+    import scala.collection.JavaConversions._
+
+    for (c <- mentionView.getConstituents) {
+      var label: String = MentionTyper.NONE_MENTION
+
+      for (tc <- gold_typed_view.getConstituents) {
+        if (c.getStartSpan == tc.getStartSpan && c.getEndSpan == tc.getEndSpan) {
+          label = tc.getLabel
+        }
+      }
+
+      typedView.addSpanLabel(c.getStartSpan, c.getEndSpan, label, 1.0)
+    }
+    ta.addView(Constants.TYPED_CANDIDATE_MENTION_VIEW, typedView)
   }
 
   def loadDataFromCache : Iterator[TextAnnotation] = {

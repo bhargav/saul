@@ -1,6 +1,7 @@
 package edu.illinois.cs.cogcomp.saulexamples.nlp.RelationExtraction
 
 import edu.illinois.cs.cogcomp.core.datastructures.textannotation.Constituent
+import edu.illinois.cs.cogcomp.illinoisRE.data.SemanticRelation
 import edu.illinois.cs.cogcomp.lbjava.learn.SupportVectorMachine
 import edu.illinois.cs.cogcomp.saul.classifier.Learnable
 import edu.illinois.cs.cogcomp.saul.constraint.ConstraintTypeConversion._
@@ -14,7 +15,7 @@ object REClassifiers {
   object mentionTypeClassifier extends Learnable[Constituent](REDataModel) {
     def label = mentionFineLabel
     override def feature = using(
-      NoPrepFeature, OnePrepFeature, TwoPrepFeature, MoreThanTwoPrepFeature, NoVerbFeature, NoCommaFeature,
+//      NoPrepFeature, OnePrepFeature, TwoPrepFeature, MoreThanTwoPrepFeature, NoVerbFeature, NoCommaFeature,
       InOrgPoliticalListFeature, InOrgTerroristListFeature,
       InVehListFeature,
       InWeaListFeature,
@@ -27,17 +28,18 @@ object REClassifiers {
       InEthnicGroupOrNationalityListFeature,
       InGPECityListFeature, InGPECountryListFeature, InGPECountyListFeature, InGPEStateListFeature, InGPECommonNounListFeature,
       InGPEMajorAreaListFeature,
-      InOrgGovtListFeature, InOrgCommercialListFeature, InOrgEducationalListFeature,
+      InOrgGovtListFeature, InOrgCommercialListFeature, InOrgEducationalListFeature)
       //      InPersonTitleListFeature, InPersonNameListFeature, InPersonPronounListFeature, InPersonDBpediaListFeature,
       //      SynOfAllNounFeature,
       //      mentionTypeFeatures,
-      POSIndexBagFeature, WordIndexBagFeature, POSWordIndexBagFeature, POSEndWordIndexBagFeature,
-      WordBCIndexBagFeature, POSWordBCIndexBagFeature, POSEndWordBCIndexBagFeature,
-      ParseExactFeature, ParseCoverFeature,
-      ContextLeftWordFeature, ContextLeftPOSFeature, ContextRightWordFeature, ContextRightPOSFeature,
+//      POSIndexBagFeature, WordIndexBagFeature, POSWordIndexBagFeature, POSEndWordIndexBagFeature,
+//      WordBCIndexBagFeature, POSWordBCIndexBagFeature, POSEndWordBCIndexBagFeature,
+//      ParseExactFeature, ParseCoverFeature,
+//      ContextLeftWordFeature, ContextLeftPOSFeature, ContextRightWordFeature, ContextRightPOSFeature,
       //      WikiAttributesFeature,
-      NERLabelsFeature)
+//      NERLabelsFeature)
     override lazy val classifier = new SupportVectorMachine(1, 0.1, -1, "L2LOSS_SVM_DUAL")
+    override val loggging = true
   }
 
   object relationTypeFineClassifier extends Learnable[SemanticRelation](REDataModel) {

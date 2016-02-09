@@ -1,11 +1,11 @@
 package edu.illinois.cs.cogcomp.saulexamples.nlp.RelationExtraction
 
 import edu.illinois.cs.cogcomp.core.datastructures.textannotation.{Relation, Sentence, Constituent}
-import edu.illinois.cs.cogcomp.saulexamples.nlp.RelationExtraction.mention.MentionUtil
-import edu.illinois.cs.cogcomp.saulexamples.nlp.RelationExtraction.relation.RelationExtractor
+import edu.illinois.cs.cogcomp.illinoisRE.common.{Document, Constants}
+import edu.illinois.cs.cogcomp.illinoisRE.data.SemanticRelation
+import edu.illinois.cs.cogcomp.illinoisRE.relation.RelationExtractor
 
 import scala.collection.JavaConversions._
-import scala.collection.JavaConverters._
 
 /**
   * Created by Bhargav Mangipudi on 2/2/16.
@@ -13,7 +13,7 @@ import scala.collection.JavaConverters._
 object RESensors {
 
   def sentenceToTokens(sentence : Sentence) : List[Constituent] = {
-    val tokens = sentence.getView(Constants.GOLD_MENTION_VIEW).getConstituents.toList
+    val tokens = sentence.getView(Constants.TYPED_CANDIDATE_MENTION_VIEW).getConstituents.toList
     assert(tokens.forall(_.getSentenceId == sentence.getSentenceId))
 
     tokens
@@ -21,7 +21,8 @@ object RESensors {
 
   def sentenceToRelations(sentence: Sentence) : List[SemanticRelation] = {
 //    Temporarily using the RelationExtractor -- Move away from that.
-    val relations = RelationExtractor.getAllExamplesFromDocument(sentence.getSentenceConstituent.getTextAnnotation)
+    val tempDoc: Document = new Document(sentence.getSentenceConstituent.getTextAnnotation)
+    val relations = RelationExtractor.getAllExamplesFromDocument(tempDoc)
       .filter(_.getSentenceId == sentence.getSentenceId)
       .filterNot(_.getBinaryLabel.equalsIgnoreCase(Constants.NO_RELATION)).toList
 

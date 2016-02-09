@@ -1,9 +1,10 @@
 package edu.illinois.cs.cogcomp.saulexamples.nlp.RelationExtraction
 
 import edu.illinois.cs.cogcomp.core.datastructures.textannotation.{Sentence, TextAnnotation, Constituent}
+import edu.illinois.cs.cogcomp.illinoisRE.data.SemanticRelation
 import edu.illinois.cs.cogcomp.saul.datamodel.DataModel
-import edu.illinois.cs.cogcomp.saulexamples.nlp.RelationExtraction.mention.MentionTypeFeatures
-import edu.illinois.cs.cogcomp.saulexamples.nlp.RelationExtraction.relation.RelationFeatures
+import edu.illinois.cs.cogcomp.illinoisRE.mention.MentionTypeFeatures
+import edu.illinois.cs.cogcomp.illinoisRE.relation.RelationFeatures
 import edu.illinois.cs.cogcomp.saulexamples.nlp.commonSensors
 
 import scala.collection.JavaConversions._
@@ -60,89 +61,89 @@ object REDataModel extends DataModel {
     c: Constituent => MentionTypeFeatures.generateFeatures(c).toList
   }
 
-  val NoPrepFeature = property(tokens, "NoPrep") {
-    c: Constituent => MentionTypeFeatures.NoPrep(c)
-  }
-
-  val OnePrepFeature = property(tokens, "OnePrep") {
-    c: Constituent => MentionTypeFeatures.OnePrep(c)
-  }
-
-  val TwoPrepFeature = property(tokens, "TwoPrep") {
-    c: Constituent => MentionTypeFeatures.TwoPrep(c)
-  }
-
-  val MoreThanTwoPrepFeature = property(tokens, "MoreThanTwoPrep") {
-    c: Constituent => MentionTypeFeatures.MoreThanTwoPrep(c)
-  }
-
-  val NoVerbFeature = property(tokens, "NoVerb") {
-    c: Constituent => MentionTypeFeatures.NoVerb(c)
-  }
-
-  val NoCommaFeature = property(tokens, "NoComma") {
-    c: Constituent => MentionTypeFeatures.NoComma(c)
-  }
-
-  val POSIndexBagFeature = property(tokens, "POSIndexBag") {
-    c: Constituent => MentionTypeFeatures.PosIndexBag(c).toList
-  }
-
-  val WordIndexBagFeature = property(tokens, "WordIndexBag") {
-    c: Constituent => MentionTypeFeatures.WordIndexBag(c).toList
-  }
-
-  val POSWordIndexBagFeature = property(tokens, "POSWordIndexBag") {
-    c: Constituent => MentionTypeFeatures.PosWordIndexBag(c).toList
-  }
-
-  val POSEndWordIndexBagFeature = property(tokens, "POSEndWordIndexBag") {
-    c: Constituent => MentionTypeFeatures.PosEndWordIndexBag(c).toList
-  }
-
-  val WordBCIndexBagFeature = property(tokens, "WordBCIndexBag") {
-    c: Constituent => MentionTypeFeatures.WordBCIndexBag(c).toList
-  }
-
-  val POSWordBCIndexBagFeature = property(tokens, "POSWordBCIndexBag") {
-    c: Constituent => MentionTypeFeatures.PosWordBCIndexBag(c).toList
-  }
-
-  val POSEndWordBCIndexBagFeature = property(tokens, "POSEndWordBCIndexBag") {
-    c: Constituent => MentionTypeFeatures.PosEndWordBCIndexBag(c).toList
-  }
-
-  val ParseExactFeature = property(tokens, "ParseExact") {
-    c: Constituent => MentionTypeFeatures.ParseExact(c).toList
-  }
-
-  val ParseCoverFeature = property(tokens, "ParseCover") {
-    c: Constituent => MentionTypeFeatures.ParseCover(c).toList
-  }
-
-  val ContextLeftWordFeature = property(tokens, "ContextLeftWord") {
-    c: Constituent => MentionTypeFeatures.ContextLeftWord(c)
-  }
-
-  val ContextLeftPOSFeature = property(tokens, "ContextLeftPOS") {
-    c: Constituent => MentionTypeFeatures.ContextLeftPos(c)
-  }
-
-  val ContextRightWordFeature = property(tokens, "ContextRightWord") {
-    c: Constituent => MentionTypeFeatures.ContextRightWord(c)
-  }
-
-  val ContextRightPOSFeature = property(tokens, "ContextRightPOS") {
-    c: Constituent => MentionTypeFeatures.ContextRightPos(c)
-  }
-
-  val NERLabelsFeature = property(tokens, "NERLabels") {
-    c: Constituent => MentionTypeFeatures.NerLabels(c).toList
-  }
-
-  val WikiAttributesFeature = property(tokens, "WikiAttributes") {
-    c: Constituent => MentionTypeFeatures.WikiAttributes(c).toList
-  }
+//  val NoPrepFeature = property(tokens, "NoPrep") {
+//    c: Constituent => MentionTypeFeatures.NoPrep(c)
+//  }
+//
+//  val OnePrepFeature = property(tokens, "OnePrep") {
+//    c: Constituent => MentionTypeFeatures.OnePrep(c)
+//  }
+//
+//  val TwoPrepFeature = property(tokens, "TwoPrep") {
+//    c: Constituent => MentionTypeFeatures.TwoPrep(c)
+//  }
+//
+//  val MoreThanTwoPrepFeature = property(tokens, "MoreThanTwoPrep") {
+//    c: Constituent => MentionTypeFeatures.MoreThanTwoPrep(c)
+//  }
+//
+//  val NoVerbFeature = property(tokens, "NoVerb") {
+//    c: Constituent => MentionTypeFeatures.NoVerb(c)
+//  }
+//
+//  val NoCommaFeature = property(tokens, "NoComma") {
+//    c: Constituent => MentionTypeFeatures.NoComma(c)
+//  }
+//
+//  val POSIndexBagFeature = property(tokens, "POSIndexBag") {
+//    c: Constituent => MentionTypeFeatures.PosIndexBag(c).toList
+//  }
+//
+//  val WordIndexBagFeature = property(tokens, "WordIndexBag") {
+//    c: Constituent => MentionTypeFeatures.WordIndexBag(c).toList
+//  }
+//
+//  val POSWordIndexBagFeature = property(tokens, "POSWordIndexBag") {
+//    c: Constituent => MentionTypeFeatures.PosWordIndexBag(c).toList
+//  }
+//
+//  val POSEndWordIndexBagFeature = property(tokens, "POSEndWordIndexBag") {
+//    c: Constituent => MentionTypeFeatures.PosEndWordIndexBag(c).toList
+//  }
+//
+//  val WordBCIndexBagFeature = property(tokens, "WordBCIndexBag") {
+//    c: Constituent => MentionTypeFeatures.WordBCIndexBag(c).toList
+//  }
+//
+//  val POSWordBCIndexBagFeature = property(tokens, "POSWordBCIndexBag") {
+//    c: Constituent => MentionTypeFeatures.PosWordBCIndexBag(c).toList
+//  }
+//
+//  val POSEndWordBCIndexBagFeature = property(tokens, "POSEndWordBCIndexBag") {
+//    c: Constituent => MentionTypeFeatures.PosEndWordBCIndexBag(c).toList
+//  }
+//
+//  val ParseExactFeature = property(tokens, "ParseExact") {
+//    c: Constituent => MentionTypeFeatures.ParseExact(c).toList
+//  }
+//
+//  val ParseCoverFeature = property(tokens, "ParseCover") {
+//    c: Constituent => MentionTypeFeatures.ParseCover(c).toList
+//  }
+//
+//  val ContextLeftWordFeature = property(tokens, "ContextLeftWord") {
+//    c: Constituent => MentionTypeFeatures.ContextLeftWord(c)
+//  }
+//
+//  val ContextLeftPOSFeature = property(tokens, "ContextLeftPOS") {
+//    c: Constituent => MentionTypeFeatures.ContextLeftPos(c)
+//  }
+//
+//  val ContextRightWordFeature = property(tokens, "ContextRightWord") {
+//    c: Constituent => MentionTypeFeatures.ContextRightWord(c)
+//  }
+//
+//  val ContextRightPOSFeature = property(tokens, "ContextRightPOS") {
+//    c: Constituent => MentionTypeFeatures.ContextRightPos(c)
+//  }
+//
+//  val NERLabelsFeature = property(tokens, "NERLabels") {
+//    c: Constituent => MentionTypeFeatures.NerLabels(c).toList
+//  }
+//
+//  val WikiAttributesFeature = property(tokens, "WikiAttributes") {
+//    c: Constituent => MentionTypeFeatures.WikiAttributes(c).toList
+//  }
 
   val SurroundingWordsFeature = property(tokens, "SurroundingWords") {
     c: Constituent => MentionTypeFeatures.SurroundingWords(c).toList
@@ -810,19 +811,19 @@ object REDataModel extends DataModel {
     s: SemanticRelation => RelationFeatures.LastPrepStringInBetweenbc(s, 10)
   }
 
-  val M1WikiAttributesFeature = property(pairedRelations, "M1WikiAttributes") {
-    s: SemanticRelation => {
-      val attributeList = RelationFeatures.M1WikiAttributes(s)
-      if (attributeList == null) List.empty else attributeList.toList
-    }
-  }
-
-  val M2WikiAttributesFeature = property(pairedRelations, "M2WikiAttributes") {
-    s: SemanticRelation => {
-      val attributeList = RelationFeatures.M2WikiAttributes(s)
-      if (attributeList == null) List.empty else attributeList.toList
-    }
-  }
+//  val M1WikiAttributesFeature = property(pairedRelations, "M1WikiAttributes") {
+//    s: SemanticRelation => {
+//      val attributeList = RelationFeatures.M1WikiAttributes(s)
+//      if (attributeList == null) List.empty else attributeList.toList
+//    }
+//  }
+//
+//  val M2WikiAttributesFeature = property(pairedRelations, "M2WikiAttributes") {
+//    s: SemanticRelation => {
+//      val attributeList = RelationFeatures.M2WikiAttributes(s)
+//      if (attributeList == null) List.empty else attributeList.toList
+//    }
+//  }
 
   val HasCoveringMentionFeature = property(pairedRelations, "HasCoveringMention") {
     s: SemanticRelation => RelationFeatures.HasCoveringMention(s)
