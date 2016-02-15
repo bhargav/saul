@@ -5,7 +5,7 @@ import edu.illinois.cs.cogcomp.illinoisRE.data.SemanticRelation
 import edu.illinois.cs.cogcomp.saul.datamodel.DataModel
 import edu.illinois.cs.cogcomp.illinoisRE.mention.MentionTypeFeatures
 import edu.illinois.cs.cogcomp.illinoisRE.relation.RelationFeatures
-import edu.illinois.cs.cogcomp.saulexamples.nlp.commonSensors
+import edu.illinois.cs.cogcomp.saulexamples.nlp.CommonSensors
 
 import scala.collection.JavaConversions._
 
@@ -23,7 +23,7 @@ object REDataModel extends DataModel {
   val pairedRelations = node[SemanticRelation]
 
   val documentToSentences = edge(documents, sentences)
-  documentToSentences.addSensor(commonSensors.getSentences _)
+  documentToSentences.addSensor(CommonSensors.getSentences _)
 
   val sentenceToTokens = edge(sentences, tokens)
   sentenceToTokens.addSensor(RESensors.sentenceToTokens _)

@@ -139,8 +139,8 @@ object relationExtractionApp {
   }
 
   def loadDataFromCache : Iterator[TextAnnotation] = {
-    val masterFileList = ResourceManager.getProjectRoot + "/data/ace2004/allfiles"
-    val cacheBasePath = ResourceManager.getProjectRoot + "/data_cache/"
+    val masterFileList = ResourceManager.getProjectRoot + "/../data/ace2004/allfiles"
+    val cacheBasePath = ResourceManager.getProjectRoot + "/../data_cache/"
 
     Source.fromFile(masterFileList).getLines().map(fileName => {
       val outputFile = new File(cacheBasePath + fileName + ".ta")
