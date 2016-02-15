@@ -28,16 +28,17 @@ object REClassifiers {
       InEthnicGroupOrNationalityListFeature,
       InGPECityListFeature, InGPECountryListFeature, InGPECountyListFeature, InGPEStateListFeature, InGPECommonNounListFeature,
       InGPEMajorAreaListFeature,
-      InOrgGovtListFeature, InOrgCommercialListFeature, InOrgEducationalListFeature)
+      InOrgGovtListFeature, InOrgCommercialListFeature, InOrgEducationalListFeature,
       //      InPersonTitleListFeature, InPersonNameListFeature, InPersonPronounListFeature, InPersonDBpediaListFeature,
       //      SynOfAllNounFeature,
-      //      mentionTypeFeatures,
+            mentionTypeFeatures
 //      POSIndexBagFeature, WordIndexBagFeature, POSWordIndexBagFeature, POSEndWordIndexBagFeature,
 //      WordBCIndexBagFeature, POSWordBCIndexBagFeature, POSEndWordBCIndexBagFeature,
 //      ParseExactFeature, ParseCoverFeature,
 //      ContextLeftWordFeature, ContextLeftPOSFeature, ContextRightWordFeature, ContextRightPOSFeature,
       //      WikiAttributesFeature,
-//      NERLabelsFeature)
+//      NERLabelsFeature
+    )
     override lazy val classifier = new SupportVectorMachine(1, 0.1, -1, "L2LOSS_SVM_DUAL")
     override val loggging = true
   }
@@ -72,7 +73,7 @@ object REClassifiers {
       M1m2SubType_m1IncludesM2Feature, M1m2SubType_m2IncludesM1Feature,
       M1m2MainType_m1IncludesM2Feature, M1m2MainType_m2IncludesM1Feature,
       M1HeadWordAndDepParentWordFeature, M2HeadWordAndDepParentWordFeature,
-//      DepPathInBetweenFeature, todo@bhargav - add this back
+      DepPathInBetweenFeature,
       DepLabelsInBetweenFeature,
       CpInBetweenNullFeature,
 //      PofM1HwFeature, PofM2HwFeature,
