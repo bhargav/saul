@@ -16,8 +16,13 @@ import scala.io.Source
   * Created by Bhargav Mangipudi on 1/28/16.
   */
 object relationExtractionApp {
+  object REExperimentType extends Enumeration {
+    val RunMentionCV, RunRelationCV = Value
+  }
 
   def main(args: Array[String]): Unit = {
+    val experimentType = REExperimentType.RunMentionCV
+
     val docs = loadDataFromCache.toList
 
     val numSentences = docs.map(_.getNumberOfSentences).sum
@@ -32,38 +37,71 @@ object relationExtractionApp {
     })
 
     val numFolds = 5
-    val evaluation = (0 until numFolds).map({ fold =>
+
+    def setupDataModelForFold(fold: Int) = {
       println(s"Running fold $fold")
 
       val zipDocs = docs.zipWithIndex
-      val trainDocs = zipDocs.filterNot({case (doc, index) => index % numFolds == fold}).map(_._1)
-      val testDocs = zipDocs.filter({case (doc, index) => index % numFolds == fold}).map(_._1)
-
-      println(trainDocs.length)
-      println(testDocs.length)
+      val trainDocs = zipDocs.filterNot({ case (doc, index) => index % numFolds == fold }).map(_._1)
+      val testDocs = zipDocs.filter({ case (doc, index) => index % numFolds == fold }).map(_._1)
 
       REDataModel.clearInstances
       REDataModel.documents.populate(trainDocs)
       REDataModel.documents.populate(testDocs, false)
 
-//      println(s"Total number of mentions = ${REDataModel.tokens.trainingSet.size}/${REDataModel.tokens.testingSet.size}")
+      (trainDocs, testDocs)
+    }
 
-      REClassifiers.mentionTypeClassifier.forget
-      REClassifiers.mentionTypeClassifier.learn(1)
+    if (experimentType == REExperimentType.RunMentionCV) {
+      (0 until numFolds).map({ fold =>
+        val (_, testDocs) = setupDataModelForFold(fold)
 
-      testMentionTypeClassifier(testDocs, Constants.PRED_MENTION_VIEW)
+        println(s"Total number of mentions = ${REDataModel.tokens.getTrainingInstances.size}" +
+          s" / ${REDataModel.tokens.getTestingInstances.size}")
 
-      evaluateMentionTypeClassifier(testDocs, Constants.GOLD_MENTION_VIEW, Constants.PRED_MENTION_VIEW)
-    })
+        REClassifiers.mentionTypeClassifier.forget
+        REClassifiers.mentionTypeClassifier.learn(1)
 
-    evaluation.zipWithIndex.foreach({ case ((untyped, typed), index) =>
-      println(s"Fold number $index")
-      untyped.printPerformance(System.out)
-      typed.printPerformance(System.out)
-    })
+        testMentionTypeClassifier(testDocs, Constants.PRED_MENTION_VIEW)
+
+        val evalOnFold = evaluateMentionTypeClassifier(testDocs, Constants.GOLD_MENTION_VIEW, Constants.PRED_MENTION_VIEW)
+
+        (evalOnFold, fold)
+      }).toList
+        .foreach({ case ((untyped, typed), index) =>
+          println(s"Fold number $index")
+          untyped.printPerformance(System.out)
+          typed.printPerformance(System.out)
+        })
+
+    } else if (experimentType == REExperimentType.RunRelationCV) {
+      (0 until numFolds).map({ fold =>
+        setupDataModelForFold(fold)
+
+        println(s"Total number of relations = ${REDataModel.pairedRelations.getTrainingInstances.size}" +
+          s" / ${REDataModel.pairedRelations.getTestingInstances.size}")
+
+        REClassifiers.relationTypeFineClassifier.forget
+        REClassifiers.relationTypeFineClassifier.learn(1)
+
+        val relationPerformanceOnFold = new TestDiscrete()
+        REDataModel.pairedRelations.getTestingInstances.foreach({ rel =>
+          val prediction = REClassifiers.relationTypeFineClassifier(rel)
+          if (prediction != Constants.NO_RELATION || rel.getFineLabel != Constants.NO_RELATION)
+            relationPerformanceOnFold.reportPrediction(prediction, rel.getFineLabel)
+        })
+
+        (relationPerformanceOnFold, fold)
+      })
+        .toList
+        .foreach({ case (perf, index) =>
+        println(s"Fold number $index")
+        perf.printPerformance(System.out)
+      })
+    }
   }
 
-  def testMentionTypeClassifier(testDocs: Seq[TextAnnotation], predictionViewName: String) : Unit = {
+  def testMentionTypeClassifier(testDocs: Iterable[TextAnnotation], predictionViewName: String) : Unit = {
     for (doc <- testDocs) {
       // Predictions are added as a new view to the TA
       val typedView = new SpanLabelView(predictionViewName, "predict", doc, 1.0, true)
@@ -80,7 +118,7 @@ object relationExtractionApp {
     }
   }
 
-  def evaluateMentionTypeClassifier(testDocs: Seq[TextAnnotation], goldViewName: String, predictionViewName: String) : (TestDiscrete, TestDiscrete) = {
+  def evaluateMentionTypeClassifier(testDocs: Iterable[TextAnnotation], goldViewName: String, predictionViewName: String) : (TestDiscrete, TestDiscrete) = {
     val mentionDetectionPerformance = new TestDiscrete()
     val mentionTypePerformance = new TestDiscrete()
 
