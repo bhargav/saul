@@ -15,7 +15,7 @@ import scala.io.Source
 /**
   * Created by Bhargav Mangipudi on 1/28/16.
   */
-object relationExtractionApp {
+object RelationExtractionApp {
   object REExperimentType extends Enumeration {
     val RunMentionCV, RunRelationCV = Value
   }
