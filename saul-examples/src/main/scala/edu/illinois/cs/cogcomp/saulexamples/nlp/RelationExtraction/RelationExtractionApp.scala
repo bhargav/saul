@@ -143,7 +143,8 @@ object RelationExtractionApp {
       })
 
       goldView.getConstituents.foreach({ gc: Constituent =>
-        val predMatch = predictView.getConstituents.filterNot(_.getLabel == MentionTyper.NONE_MENTION).filter(cc => cc.getStartSpan == gc.getStartSpan && cc.getEndSpan == gc.getEndSpan).toList
+        val predMatch = predictView.getConstituents.filterNot(_.getLabel == MentionTyper.NONE_MENTION)
+          .filter(cc => cc.getStartSpan == gc.getStartSpan && cc.getEndSpan == gc.getEndSpan).toList
         assert(predMatch.length <= 1)
 
         if (predMatch.length == 0)
@@ -174,7 +175,7 @@ object RelationExtractionApp {
 
     evaluate(REClassifiers.relationTypeFineClassifier(_), _.getFineLabel) ::
       evaluate(REClassifiers.relationTypeCoarseClassifier(_), _.getCoarseLabel) ::
-      evaluate(REConstrainedClassifiers.relationTypeFineHierarchyConstained.classifier.discreteValue(_), _.getFineLabel) :: Nil
+      evaluate(REConstrainedClassifiers.relationTypeFineHierarchyConstrained.classifier.discreteValue, _.getFineLabel) :: Nil
   }
 
   def createTypedCandidateMentions(ta: TextAnnotation, goldTypedView: SpanLabelView) {
