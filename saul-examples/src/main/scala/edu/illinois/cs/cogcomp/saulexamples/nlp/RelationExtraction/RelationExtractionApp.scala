@@ -21,7 +21,7 @@ object RelationExtractionApp {
   }
 
   def main(args: Array[String]): Unit = {
-    val experimentType = REExperimentType.RunMentionCV
+    val experimentType = REExperimentType.RunRelationCV
 
     val docs = loadDataFromCache.toList
 
@@ -59,8 +59,8 @@ object RelationExtractionApp {
         println(s"Total number of mentions = ${REDataModel.tokens.getTrainingInstances.size}" +
           s" / ${REDataModel.tokens.getTestingInstances.size}")
 
-        REClassifiers.mentionTypeClassifier.forget
-        REClassifiers.mentionTypeClassifier.learn(1)
+        REClassifiers.mentionTypeFineClassifier.forget
+        REClassifiers.mentionTypeFineClassifier.learn(1)
 
         testMentionTypeClassifier(testDocs, Constants.PRED_MENTION_VIEW)
 
@@ -84,19 +84,35 @@ object RelationExtractionApp {
         REClassifiers.relationTypeFineClassifier.forget
         REClassifiers.relationTypeFineClassifier.learn(1)
 
+        REClassifiers.relationTypeCoarseClassifier.forget
+        REClassifiers.relationTypeCoarseClassifier.learn(1)
+
+        val relationConstainedPerformanceOnFold = new TestDiscrete()
+        val relationCoarsePeformanceOnFold = new TestDiscrete()
         val relationPerformanceOnFold = new TestDiscrete()
+
         REDataModel.pairedRelations.getTestingInstances.foreach({ rel =>
           val prediction = REClassifiers.relationTypeFineClassifier(rel)
           if (prediction != Constants.NO_RELATION || rel.getFineLabel != Constants.NO_RELATION)
             relationPerformanceOnFold.reportPrediction(prediction, rel.getFineLabel)
+
+          val predictionCoarse = REClassifiers.relationTypeCoarseClassifier(rel)
+          if (predictionCoarse != Constants.NO_RELATION || rel.getCoarseLabel != Constants.NO_RELATION)
+            relationCoarsePeformanceOnFold.reportPrediction(predictionCoarse, rel.getCoarseLabel)
+
+          val predictionCombined = REConstrainedClassifiers.relationTypeFineHierarchyConstained.classifier.discreteValue(rel)
+          if (predictionCombined != Constants.NO_RELATION || rel.getFineLabel != Constants.NO_RELATION)
+            relationConstainedPerformanceOnFold.reportPrediction(predictionCombined, rel.getFineLabel)
         })
 
-        (relationPerformanceOnFold, fold)
+        (relationPerformanceOnFold, relationCoarsePeformanceOnFold, relationConstainedPerformanceOnFold, fold)
       })
         .toList
-        .foreach({ case (perf, index) =>
+        .foreach({ case (perfFine, perfCoarse, perfConstrained, index) =>
         println(s"Fold number $index")
-        perf.printPerformance(System.out)
+        perfFine.printPerformance(System.out)
+        perfCoarse.printPerformance(System.out)
+        perfConstrained.printPerformance(System.out)
       })
     }
   }
@@ -109,8 +125,8 @@ object RelationExtractionApp {
 
       doc.getView(Constants.CANDIDATE_MENTION_VIEW).getConstituents.foreach({
         c: Constituent =>
-          val label = REClassifiers.mentionTypeClassifier(c)
-          val scoreSet = softmax.normalize(REClassifiers.mentionTypeClassifier.classifier.scores(c))
+          val label = REClassifiers.mentionTypeFineClassifier(c)
+          val scoreSet = softmax.normalize(REClassifiers.mentionTypeFineClassifier.classifier.scores(c))
           typedView.addSpanLabel(c.getStartSpan, c.getEndSpan, label, scoreSet.get(label))
       })
 

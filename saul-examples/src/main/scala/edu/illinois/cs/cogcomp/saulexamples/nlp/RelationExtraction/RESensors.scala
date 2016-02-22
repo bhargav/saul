@@ -25,7 +25,6 @@ object RESensors {
     val relations = RelationExtractor.getAllExamplesFromDocument(tempDoc)
       .filter(_.getSentenceId == sentence.getSentenceId).toList
 
-    assert(relations.forall(_.getSentenceId == sentence.getSentenceId))
     relations
   }
 }
