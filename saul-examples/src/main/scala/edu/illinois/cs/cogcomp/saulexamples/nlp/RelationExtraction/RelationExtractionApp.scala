@@ -2,18 +2,17 @@ package edu.illinois.cs.cogcomp.saulexamples.nlp.RelationExtraction
 
 import java.io._
 
-import edu.illinois.cs.cogcomp.core.datastructures.textannotation.{Constituent, TextAnnotation, SpanLabelView}
-import edu.illinois.cs.cogcomp.illinoisRE.common.{Util, Document, ResourceManager, Constants}
-import edu.illinois.cs.cogcomp.illinoisRE.data.{SemanticRelation, DataLoader}
-import edu.illinois.cs.cogcomp.illinoisRE.mention.{MentionTyper, MentionDetector}
+import edu.illinois.cs.cogcomp.core.datastructures.textannotation.{ Constituent, TextAnnotation, SpanLabelView }
+import edu.illinois.cs.cogcomp.illinoisRE.common.{ Util, Document, ResourceManager, Constants }
+import edu.illinois.cs.cogcomp.illinoisRE.data.{ SemanticRelation, DataLoader }
+import edu.illinois.cs.cogcomp.illinoisRE.mention.{ MentionTyper, MentionDetector }
 import edu.illinois.cs.cogcomp.lbjava.classify.TestDiscrete
 import edu.illinois.cs.cogcomp.lbjava.learn.Softmax
 
 import scala.collection.JavaConversions._
 import scala.io.Source
 
-/**
-  * Created by Bhargav Mangipudi on 1/28/16.
+/** Created by Bhargav Mangipudi on 1/28/16.
   */
 object RelationExtractionApp {
   object REExperimentType extends Enumeration {
@@ -68,10 +67,11 @@ object RelationExtractionApp {
 
         (evalOnFold, fold)
       }).toList
-        .foreach({ case ((untyped, typed), index) =>
-          println(s"Fold number $index")
-          untyped.printPerformance(System.out)
-          typed.printPerformance(System.out)
+        .foreach({
+          case ((untyped, typed), index) =>
+            println(s"Fold number $index")
+            untyped.printPerformance(System.out)
+            typed.printPerformance(System.out)
         })
 
     } else if (experimentType == REExperimentType.RunRelationCV) {
@@ -90,17 +90,19 @@ object RelationExtractionApp {
         (evaluationRelationTypeClassifier, fold)
       })
         .toList
-        .foreach({ case (eval, fold) =>
-          println(s"Fold number $fold")
-          eval.zip(List("Relation Fine", "Relation Coarse", "Relation Constrained")).foreach({ case ((recall, predicted, correct), clf) =>
-              println(s"Classifier - $clf - ${(recall, predicted, correct)}")
-              println(s"Accuracy - ${correct.toDouble/predicted*100.0} // Recall - ${correct.toDouble/recall*100.0} // F1 - ${Util.calculateF1(correct, recall, predicted)}")
-          })
+        .foreach({
+          case (eval, fold) =>
+            println(s"Fold number $fold")
+            eval.zip(List("Relation Fine", "Relation Coarse", "Relation Constrained")).foreach({
+              case ((recall, predicted, correct), clf) =>
+                println(s"Classifier - $clf - ${(recall, predicted, correct)}")
+                println(s"Accuracy - ${correct.toDouble / predicted * 100.0} // Recall - ${correct.toDouble / recall * 100.0} // F1 - ${Util.calculateF1(correct, recall, predicted)}")
+            })
         })
     }
   }
 
-  def testMentionTypeClassifier(testDocs: Iterable[TextAnnotation], predictionViewName: String) : Unit = {
+  def testMentionTypeClassifier(testDocs: Iterable[TextAnnotation], predictionViewName: String): Unit = {
     for (doc <- testDocs) {
       // Predictions are added as a new view to the TA
       val typedView = new SpanLabelView(predictionViewName, "predict", doc, 1.0, true)
@@ -117,7 +119,7 @@ object RelationExtractionApp {
     }
   }
 
-  def evaluateMentionTypeClassifier(testDocs: Iterable[TextAnnotation], goldViewName: String, predictionViewName: String) : (TestDiscrete, TestDiscrete) = {
+  def evaluateMentionTypeClassifier(testDocs: Iterable[TextAnnotation], goldViewName: String, predictionViewName: String): (TestDiscrete, TestDiscrete) = {
     val mentionDetectionPerformance = new TestDiscrete()
     val mentionTypePerformance = new TestDiscrete()
 
@@ -156,22 +158,23 @@ object RelationExtractionApp {
     (mentionDetectionPerformance, mentionTypePerformance)
   }
 
-  def evaluationRelationTypeClassifier : List[(Int, Int, Int)] = {
-    def evaluate(predf: SemanticRelation => String, goldf: SemanticRelation => String) : (Int, Int, Int) = {
-      REDataModel.pairedRelations.getTestingInstances.foldLeft((0, 0, 0))({ case ((r, p, c), rel) =>
-        val goldLabel = goldf(rel)
-        val predictedLabel = predf(rel)
-        val rInc = if (goldLabel != Constants.NO_RELATION) 1 else 0
-        val pInc = if (predictedLabel != Constants.NO_RELATION) 1 else 0
-        val cInc = if (pInc == 1 && goldLabel.equalsIgnoreCase(predictedLabel)) 1 else 0
+  def evaluationRelationTypeClassifier: List[(Int, Int, Int)] = {
+    def evaluate(predf: SemanticRelation => String, goldf: SemanticRelation => String): (Int, Int, Int) = {
+      REDataModel.pairedRelations.getTestingInstances.foldLeft((0, 0, 0))({
+        case ((r, p, c), rel) =>
+          val goldLabel = goldf(rel)
+          val predictedLabel = predf(rel)
+          val rInc = if (goldLabel != Constants.NO_RELATION) 1 else 0
+          val pInc = if (predictedLabel != Constants.NO_RELATION) 1 else 0
+          val cInc = if (pInc == 1 && goldLabel.equalsIgnoreCase(predictedLabel)) 1 else 0
 
-        (r + rInc, p + pInc, c + cInc)
+          (r + rInc, p + pInc, c + cInc)
       })
     }
 
     evaluate(REClassifiers.relationTypeFineClassifier(_), _.getFineLabel) ::
-    evaluate(REClassifiers.relationTypeCoarseClassifier(_), _.getCoarseLabel) ::
-    evaluate(REConstrainedClassifiers.relationTypeFineHierarchyConstained.classifier.discreteValue(_), _.getFineLabel) :: Nil
+      evaluate(REClassifiers.relationTypeCoarseClassifier(_), _.getCoarseLabel) ::
+      evaluate(REConstrainedClassifiers.relationTypeFineHierarchyConstained.classifier.discreteValue(_), _.getFineLabel) :: Nil
   }
 
   def createTypedCandidateMentions(ta: TextAnnotation, goldTypedView: SpanLabelView) {
@@ -193,7 +196,7 @@ object RelationExtractionApp {
     ta.addView(Constants.TYPED_CANDIDATE_MENTION_VIEW, typedView)
   }
 
-  def loadDataFromCache : Iterator[TextAnnotation] = {
+  def loadDataFromCache: Iterator[TextAnnotation] = {
     val masterFileList = ResourceManager.getProjectRoot + "/../data/ace2004/allfiles"
     val cacheBasePath = ResourceManager.getProjectRoot + "/../data_cache/"
 

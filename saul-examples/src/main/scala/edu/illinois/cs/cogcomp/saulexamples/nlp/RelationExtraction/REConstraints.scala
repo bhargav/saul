@@ -1,20 +1,20 @@
 package edu.illinois.cs.cogcomp.saulexamples.nlp.RelationExtraction
 
 import edu.illinois.cs.cogcomp.illinoisRE.data.SemanticRelation
-import edu.illinois.cs.cogcomp.lbjava.infer.{FirstOrderConjunction, FirstOrderConstraint, FirstOrderConstant, FirstOrderDisjunction}
+import edu.illinois.cs.cogcomp.lbjava.infer.{ FirstOrderConjunction, FirstOrderConstraint, FirstOrderConstant, FirstOrderDisjunction }
 import edu.illinois.cs.cogcomp.saul.classifier.ConstrainedClassifier
 import edu.illinois.cs.cogcomp.saulexamples.nlp.RelationExtraction.REClassifiers._
 
 import edu.illinois.cs.cogcomp.saul.constraint.ConstraintTypeConversion._
 
-/**
-  * Created by Bhargav Mangipudi on 2/21/16.
+/** Created by Bhargav Mangipudi on 2/21/16.
   */
 object REConstraints {
   val relationHierarchyConstraint = ConstrainedClassifier.constraintOf[SemanticRelation] {
     rel: SemanticRelation =>
 
-      val heirarchy: Map[String, List[String]] = Map(("NO_RELATION", List("NO_RELATION")),
+      val heirarchy: Map[String, List[String]] = Map(
+        ("NO_RELATION", List("NO_RELATION")),
         ("m1-ART-m2", List("m1-ART:Inventor-or-Manufacturer-m2", "m1-ART:User-or-Owner-m2")),
         ("m1-EMP-ORG-m2", List("m1-EMP-ORG:Employ-Executive-m2", "m1-EMP-ORG:Employ-Staff-m2",
           "m1-EMP-ORG:Employ-Undetermined-m2", "m1-EMP-ORG:Member-of-Group-m2", "m1-EMP-ORG:Other-m2",
@@ -35,8 +35,8 @@ object REConstraints {
       )
 
       heirarchy.map({
-        case (coarseLabel, fineLabels) => ((relationTypeCoarseClassifier on rel) is(coarseLabel)) ==>
-          fineLabels.map((relationTypeFineClassifier on rel) is(_)).foldLeft[FirstOrderConstraint](new FirstOrderConstant(false))(new FirstOrderDisjunction(_, _))
+        case (coarseLabel, fineLabels) => ((relationTypeCoarseClassifier on rel) is (coarseLabel)) ==>
+          fineLabels.map((relationTypeFineClassifier on rel) is (_)).foldLeft[FirstOrderConstraint](new FirstOrderConstant(false))(new FirstOrderDisjunction(_, _))
       }).reduce[FirstOrderConstraint](new FirstOrderConjunction(_, _))
   }
 }

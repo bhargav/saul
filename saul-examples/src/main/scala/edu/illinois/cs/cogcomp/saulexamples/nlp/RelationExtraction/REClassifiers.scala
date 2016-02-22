@@ -10,8 +10,7 @@ import edu.illinois.cs.cogcomp.saul.conversions.LBPConversion._
 
 import edu.illinois.cs.cogcomp.saulexamples.nlp.RelationExtraction.REDataModel._
 
-/**
-  * Created by Bhargav Mangipudi on 1/28/16.
+/** Created by Bhargav Mangipudi on 1/28/16.
   */
 object REClassifiers {
   private val mentionFeatures = List(
@@ -32,12 +31,12 @@ object REClassifiers {
     //      InPersonTitleListFeature, InPersonNameListFeature, InPersonPronounListFeature, InPersonDBpediaListFeature,
     //      SynOfAllNounFeature,
     mentionTypeFeatures
-    //      POSIndexBagFeature, WordIndexBagFeature, POSWordIndexBagFeature, POSEndWordIndexBagFeature,
-    //      WordBCIndexBagFeature, POSWordBCIndexBagFeature, POSEndWordBCIndexBagFeature,
-    //      ParseExactFeature, ParseCoverFeature,
-    //      ContextLeftWordFeature, ContextLeftPOSFeature, ContextRightWordFeature, ContextRightPOSFeature,
-    //      WikiAttributesFeature,
-    //      NERLabelsFeature
+  //      POSIndexBagFeature, WordIndexBagFeature, POSWordIndexBagFeature, POSEndWordIndexBagFeature,
+  //      WordBCIndexBagFeature, POSWordBCIndexBagFeature, POSEndWordBCIndexBagFeature,
+  //      ParseExactFeature, ParseCoverFeature,
+  //      ContextLeftWordFeature, ContextLeftPOSFeature, ContextRightWordFeature, ContextRightPOSFeature,
+  //      WikiAttributesFeature,
+  //      NERLabelsFeature
   )
 
   private val relationFeatures = List(
@@ -76,28 +75,28 @@ object REClassifiers {
     PM1aPM2Feature, M1PaM2PFeature, PPM1aPPM2Feature, PM1PaPM2PFeature, M1PPaM2PPFeature,
     //      PbeforeM1HeadFeature, PafterM1HeadFeature, PbeforeM2HeadFeature, PafterM2HeadFeature,
     M1DepLabelFeature, M2DepLabelFeature
-    //      BagOfChunkTypesInBetweenFeature,
-    //      M1IsNationalityFeature, M2IsNationalityFeature,
-    //      PreModIsPartOfWikiTitleFeature,
-    //      PremodIsWordNetNounCollocationFeature,
-    //      HasCommonVerbSRLPredicateFeature,
-    //       FirstDepLabelInBetweenFeature, LastDepLabelInBetweenFeature,
-    //
-    //      	OnePrepInBetweenFeature, TwoPrepInBetweenFeature, MoreThanTwoPrepInBetweenFeature,
-    //      	SinglePrepStringInBetweenFeature, FirstPrepStringInBetweenFeature, LastPrepStringInBetweenFeature,
+  //      BagOfChunkTypesInBetweenFeature,
+  //      M1IsNationalityFeature, M2IsNationalityFeature,
+  //      PreModIsPartOfWikiTitleFeature,
+  //      PremodIsWordNetNounCollocationFeature,
+  //      HasCommonVerbSRLPredicateFeature,
+  //       FirstDepLabelInBetweenFeature, LastDepLabelInBetweenFeature,
+  //
+  //      	OnePrepInBetweenFeature, TwoPrepInBetweenFeature, MoreThanTwoPrepInBetweenFeature,
+  //      	SinglePrepStringInBetweenFeature, FirstPrepStringInBetweenFeature, LastPrepStringInBetweenFeature,
 
-    //      FeaturesOfFirstPrep,
-    //      FeaturesOfSecondPrep,
-    //      FeaturesOfLastPrep,
-    //
-    //      BowM1bc10Feature, BowM2bc10Feature,
-    //      HwM1bc10Feature, HwM2bc10Feature,
-    //      LhwM1bc10Feature, HwM1Rbc10Feature, LhwM2bc10Feature, HwM2Rbc10Feature, LLhwM1bc10Feature, LhwM1Rbc10Feature, HwM1RRbc10Feature, LLhwM2bc10Feature, LhwM2Rbc10Feature, HwM2RRbc10Feature,
-    //      PM1aPM2bc10Feature, M1PaM2Pbc10Feature, PPM1aPPM2bc10Feature, PM1PaPM2Pbc10Feature, M1PPaM2PPbc10Feature,
-    //      HwM1M2bc10Feature,
-    //      WordBetweenSinglebc10Feature, WordBetweenFirstbc10Feature, WordBetweenLastbc10Feature,
-    //      M1HeadWordAndDepParentWordbc10Feature, M2HeadWordAndDepParentWordbc10Feature,
-    //      SinglePrepStringInBetweenbc10Feature, FirstPrepStringInBetweenbc10Feature, LastPrepStringInBetweenbc10Feature
+  //      FeaturesOfFirstPrep,
+  //      FeaturesOfSecondPrep,
+  //      FeaturesOfLastPrep,
+  //
+  //      BowM1bc10Feature, BowM2bc10Feature,
+  //      HwM1bc10Feature, HwM2bc10Feature,
+  //      LhwM1bc10Feature, HwM1Rbc10Feature, LhwM2bc10Feature, HwM2Rbc10Feature, LLhwM1bc10Feature, LhwM1Rbc10Feature, HwM1RRbc10Feature, LLhwM2bc10Feature, LhwM2Rbc10Feature, HwM2RRbc10Feature,
+  //      PM1aPM2bc10Feature, M1PaM2Pbc10Feature, PPM1aPPM2bc10Feature, PM1PaPM2Pbc10Feature, M1PPaM2PPbc10Feature,
+  //      HwM1M2bc10Feature,
+  //      WordBetweenSinglebc10Feature, WordBetweenFirstbc10Feature, WordBetweenLastbc10Feature,
+  //      M1HeadWordAndDepParentWordbc10Feature, M2HeadWordAndDepParentWordbc10Feature,
+  //      SinglePrepStringInBetweenbc10Feature, FirstPrepStringInBetweenbc10Feature, LastPrepStringInBetweenbc10Feature
   )
 
   object mentionTypeFineClassifier extends Learnable[Constituent](REDataModel) {
