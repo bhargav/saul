@@ -3,8 +3,8 @@ package edu.illinois.cs.cogcomp.saulexamples.nlp.RelationExtraction
 import java.io._
 
 import edu.illinois.cs.cogcomp.core.datastructures.textannotation.{Constituent, TextAnnotation, SpanLabelView}
-import edu.illinois.cs.cogcomp.illinoisRE.common.{Document, ResourceManager, Constants}
-import edu.illinois.cs.cogcomp.illinoisRE.data.DataLoader
+import edu.illinois.cs.cogcomp.illinoisRE.common.{Util, Document, ResourceManager, Constants}
+import edu.illinois.cs.cogcomp.illinoisRE.data.{SemanticRelation, DataLoader}
 import edu.illinois.cs.cogcomp.illinoisRE.mention.{MentionTyper, MentionDetector}
 import edu.illinois.cs.cogcomp.lbjava.classify.TestDiscrete
 import edu.illinois.cs.cogcomp.lbjava.learn.Softmax
@@ -87,33 +87,16 @@ object RelationExtractionApp {
         REClassifiers.relationTypeCoarseClassifier.forget
         REClassifiers.relationTypeCoarseClassifier.learn(1)
 
-        val relationConstainedPerformanceOnFold = new TestDiscrete()
-        val relationCoarsePeformanceOnFold = new TestDiscrete()
-        val relationPerformanceOnFold = new TestDiscrete()
-
-        REDataModel.pairedRelations.getTestingInstances.foreach({ rel =>
-          val prediction = REClassifiers.relationTypeFineClassifier(rel)
-          if (prediction != Constants.NO_RELATION || rel.getFineLabel != Constants.NO_RELATION)
-            relationPerformanceOnFold.reportPrediction(prediction, rel.getFineLabel)
-
-          val predictionCoarse = REClassifiers.relationTypeCoarseClassifier(rel)
-          if (predictionCoarse != Constants.NO_RELATION || rel.getCoarseLabel != Constants.NO_RELATION)
-            relationCoarsePeformanceOnFold.reportPrediction(predictionCoarse, rel.getCoarseLabel)
-
-          val predictionCombined = REConstrainedClassifiers.relationTypeFineHierarchyConstained.classifier.discreteValue(rel)
-          if (predictionCombined != Constants.NO_RELATION || rel.getFineLabel != Constants.NO_RELATION)
-            relationConstainedPerformanceOnFold.reportPrediction(predictionCombined, rel.getFineLabel)
-        })
-
-        (relationPerformanceOnFold, relationCoarsePeformanceOnFold, relationConstainedPerformanceOnFold, fold)
+        (evaluationRelationTypeClassifier, fold)
       })
         .toList
-        .foreach({ case (perfFine, perfCoarse, perfConstrained, index) =>
-        println(s"Fold number $index")
-        perfFine.printPerformance(System.out)
-        perfCoarse.printPerformance(System.out)
-        perfConstrained.printPerformance(System.out)
-      })
+        .foreach({ case (eval, fold) =>
+          println(s"Fold number $fold")
+          eval.zip(List("Relation Fine", "Relation Coarse", "Relation Constrained")).foreach({ case ((recall, predicted, correct), clf) =>
+              println(s"Classifier - $clf - ${(recall, predicted, correct)}")
+              println(s"Accuracy - ${correct.toDouble/predicted*100.0} // Recall - ${correct.toDouble/recall*100.0} // F1 - ${Util.calculateF1(correct, recall, predicted)}")
+          })
+        })
     }
   }
 
@@ -171,6 +154,24 @@ object RelationExtractionApp {
     }
 
     (mentionDetectionPerformance, mentionTypePerformance)
+  }
+
+  def evaluationRelationTypeClassifier : List[(Int, Int, Int)] = {
+    def evaluate(predf: SemanticRelation => String, goldf: SemanticRelation => String) : (Int, Int, Int) = {
+      REDataModel.pairedRelations.getTestingInstances.foldLeft((0, 0, 0))({ case ((r, p, c), rel) =>
+        val goldLabel = goldf(rel)
+        val predictedLabel = predf(rel)
+        val rInc = if (goldLabel != Constants.NO_RELATION) 1 else 0
+        val pInc = if (predictedLabel != Constants.NO_RELATION) 1 else 0
+        val cInc = if (pInc == 1 && goldLabel.equalsIgnoreCase(predictedLabel)) 1 else 0
+
+        (r + rInc, p + pInc, c + cInc)
+      })
+    }
+
+    evaluate(REClassifiers.relationTypeFineClassifier(_), _.getFineLabel) ::
+    evaluate(REClassifiers.relationTypeCoarseClassifier(_), _.getCoarseLabel) ::
+    evaluate(REConstrainedClassifiers.relationTypeFineHierarchyConstained.classifier.discreteValue(_), _.getFineLabel) :: Nil
   }
 
   def createTypedCandidateMentions(ta: TextAnnotation, goldTypedView: SpanLabelView) {
