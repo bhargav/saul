@@ -8,6 +8,7 @@ import edu.illinois.cs.cogcomp.illinoisRE.data.{ SemanticRelation, DataLoader }
 import edu.illinois.cs.cogcomp.illinoisRE.mention.{ MentionTyper, MentionDetector }
 import edu.illinois.cs.cogcomp.lbjava.classify.TestDiscrete
 import edu.illinois.cs.cogcomp.lbjava.learn.Softmax
+import edu.illinois.cs.cogcomp.saul.classifier.JointTrain
 
 import scala.collection.JavaConversions._
 import scala.io.Source
@@ -85,12 +86,20 @@ object RelationExtractionApp {
         println(s"Total number of relations = ${REDataModel.pairedRelations.getTrainingInstances.size}" +
           s" / ${REDataModel.pairedRelations.getTestingInstances.size}")
 
+        REClassifiers.mentionTypeCoarseClassifier.forget
         REClassifiers.relationTypeFineClassifier.forget
         REClassifiers.relationTypeCoarseClassifier.forget
 
         // Pre-train
+        REClassifiers.mentionTypeCoarseClassifier.learn(1)
         REClassifiers.relationTypeFineClassifier.learn(1)
         REClassifiers.relationTypeCoarseClassifier.learn(1)
+
+        JointTrain.train(
+          REDataModel,
+          REConstrainedClassifiers.entityTypeConstrainedClassifier :: REConstrainedClassifiers.relationHierarchyConstrainedClassifier :: Nil,
+          5
+        )
 
         (evaluationRelationTypeClassifier, fold)
       })
@@ -98,7 +107,7 @@ object RelationExtractionApp {
         .foreach({
           case (eval, fold) =>
             println(s"Fold number $fold")
-            eval.zip(List("Relation Fine", "Relation Coarse", "Relation Constrained")).foreach({
+            eval.zip(List("Relation Fine", "Relation Coarse", "Relation Constrained", "Entity Constrained")).foreach({
               case ((recall, predicted, correct), clf) =>
                 println(s"Classifier - $clf - ${(recall, predicted, correct)}")
                 println(s"Accuracy - ${correct.toDouble / predicted * 100.0} // Recall - ${correct.toDouble / recall * 100.0} // F1 - ${Util.calculateF1(correct, recall, predicted)}")
@@ -178,9 +187,10 @@ object RelationExtractionApp {
       })
     }
 
-    evaluate(REClassifiers.relationTypeFineClassifier(_), _.getFineLabel) ::
+      evaluate(REClassifiers.relationTypeFineClassifier(_), _.getFineLabel) ::
       evaluate(REClassifiers.relationTypeCoarseClassifier(_), _.getCoarseLabel) ::
-      evaluate(REConstrainedClassifiers.relationHierarchyConstrainedClassifier.classifier.discreteValue, _.getFineLabel) :: Nil
+      evaluate(REConstrainedClassifiers.relationHierarchyConstrainedClassifier.classifier.discreteValue, _.getFineLabel) ::
+      evaluate(REConstrainedClassifiers.entityTypeConstrainedClassifier.classifier.discreteValue, _.getCoarseLabel) :: Nil
   }
 
   def createTypedCandidateMentions(ta: TextAnnotation, goldTypedView: SpanLabelView) {
@@ -205,6 +215,7 @@ object RelationExtractionApp {
   /** Method to load ACE Documents
     * Attempts to fetch the serialized TA instances directly and updates cache if a particular
     * document is not present in the cache directory.
+    *
     * @return List of TextAnnotation items each of them representing a single document
     */
   def loadDataFromCache: Iterator[TextAnnotation] = {

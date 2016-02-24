@@ -28,4 +28,10 @@ object RESensors {
 
     relations
   }
+
+  /** Sensor to extract first Mention from a [[SemanticRelation]] instance */
+  def relationToFirstMention(relation: SemanticRelation): Constituent = relation.getM1.getConstituent
+
+  /** Sensor to extract second Mention from a [[SemanticRelation]] instance */
+  def relationToSecondMention(relation: SemanticRelation): Constituent = relation.getM2.getConstituent
 }

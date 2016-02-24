@@ -14,4 +14,10 @@ object REConstrainedClassifiers {
     relationTypeFineClassifier) {
     def subjectTo = REConstraints.relationHierarchyConstraint
   }
+
+  object entityTypeConstrainedClassifier extends ConstrainedClassifier[SemanticRelation, SemanticRelation](
+    REDataModel,
+    relationTypeCoarseClassifier) {
+    def subjectTo = REConstraints.entityTypeArgumentConstraint
+  }
 }
