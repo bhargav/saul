@@ -1,7 +1,7 @@
 package edu.illinois.cs.cogcomp.saulexamples.nlp.RelationExtraction
 
 import edu.illinois.cs.cogcomp.illinoisRE.data.SemanticRelation
-import edu.illinois.cs.cogcomp.lbjava.infer.{ FirstOrderConstraint, FirstOrderConstant }
+import edu.illinois.cs.cogcomp.lbjava.infer.{ FirstOrderConstraint }
 import edu.illinois.cs.cogcomp.saul.classifier.ConstrainedClassifier
 import edu.illinois.cs.cogcomp.saulexamples.nlp.RelationExtraction.REClassifiers._
 import edu.illinois.cs.cogcomp.saul.constraint.ConstraintTypeConversion._
@@ -9,9 +9,12 @@ import edu.illinois.cs.cogcomp.saul.constraint.ConstraintTypeConversion._
 /** Created by Bhargav Mangipudi on 2/21/16.
   */
 object REConstraints {
+
+  /** Constraint enforcing coarse-fine relation hierarchy on relations */
   val relationHierarchyConstraint = ConstrainedClassifier.constraintOf[SemanticRelation] {
     rel: SemanticRelation =>
 
+//      Map for tracking the Coarse-Fine relationship hierarchy
       val hierarchy: Map[String, List[String]] = Map(
         ("NO_RELATION", List("NO_RELATION")),
         ("m1-ART-m2", List("m1-ART:Inventor-or-Manufacturer-m2", "m1-ART:User-or-Owner-m2")),
@@ -35,9 +38,10 @@ object REConstraints {
 
       hierarchy.map({
         case (coarseLabel, fineLabelList) =>
+          // We generate the `implication` statement for each coarse label by constraining the fine labels
+          // to occur from the child relations only.
           ((relationTypeCoarseClassifier on rel) is (coarseLabel)) ==>
-          fineLabelList.map((relationTypeFineClassifier on rel) is (_))
-            .foldLeft[FirstOrderConstraint](new FirstOrderConstant(false))(_ or _)
+            fineLabelList.map((relationTypeFineClassifier on rel) is (_)).reduce(_ or _)
       }).reduce[FirstOrderConstraint](_ and _)
   }
 }

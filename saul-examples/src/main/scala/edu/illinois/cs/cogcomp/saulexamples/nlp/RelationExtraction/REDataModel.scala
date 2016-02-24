@@ -3,7 +3,7 @@ package edu.illinois.cs.cogcomp.saulexamples.nlp.RelationExtraction
 import edu.illinois.cs.cogcomp.core.datastructures.textannotation.{ Sentence, TextAnnotation, Constituent }
 import edu.illinois.cs.cogcomp.illinoisRE.data.SemanticRelation
 import edu.illinois.cs.cogcomp.saul.datamodel.DataModel
-import edu.illinois.cs.cogcomp.illinoisRE.mention.MentionTypeFeatures
+import edu.illinois.cs.cogcomp.illinoisRE.mention.{MentionTyper, MentionTypeFeatures}
 import edu.illinois.cs.cogcomp.illinoisRE.relation.RelationFeatures
 import edu.illinois.cs.cogcomp.saulexamples.nlp.CommonSensors
 
@@ -13,37 +13,33 @@ import scala.collection.JavaConversions._
   */
 object REDataModel extends DataModel {
 
+  // Some constants used by the DataModel internally.
+  private val NONE_MENTION = MentionTyper.NONE_MENTION
+  private val EXIST_MENTION = "exist"
+
   val documents = node[TextAnnotation]
-
   val sentences = node[Sentence]
-
   val tokens = node[Constituent]
-
   val pairedRelations = node[SemanticRelation]
 
   val documentToSentences = edge(documents, sentences)
-  documentToSentences.addSensor(CommonSensors.getSentences _)
-
   val sentenceToTokens = edge(sentences, tokens)
-  sentenceToTokens.addSensor(RESensors.sentenceToTokens _)
-
   val sentenceToRelations = edge(sentences, pairedRelations)
+
+  // Sensors for populating the data model graph
+  documentToSentences.addSensor(CommonSensors.getSentences _)
+  sentenceToTokens.addSensor(RESensors.sentenceToTokens _)
   sentenceToRelations.addSensor(RESensors.sentenceToRelations _)
 
-  def sanitizeFeature(f: String) = if (f != null) f else ""
-
-  def sanitizeFeature(f: Array[String]): List[String] = if (f != null) f.toList else List.empty[String]
+  // Helper functions to handle NULL returned by Java functions below
+  // todo@bhargav - Check if implicit would work here
+  private def sanitizeFeature(f: String) = if (f != null) f else ""
+  private def sanitizeFeature(f: Array[String]): List[String] = if (f != null) f.toList else List.empty[String]
 
   //  Mention Type Features
 
   val mentionBinaryLabel = property(tokens, "mentionBinaryLabel") {
-    c: Constituent =>
-      {
-        if (!c.getLabel.equalsIgnoreCase(REConstants.NONE_MENTION))
-          REConstants.EXIST_MENTION
-        else
-          REConstants.NONE_MENTION
-      }
+    c: Constituent => if (c.getLabel.equalsIgnoreCase(NONE_MENTION)) NONE_MENTION else EXIST_MENTION
   }
 
   val mentionCoarseLabel = property(tokens, "mentionCoarseLabel") {
@@ -66,89 +62,92 @@ object REDataModel extends DataModel {
     c: Constituent => MentionTypeFeatures.generateFeatures(c).toList
   }
 
-  //  val NoPrepFeature = property(tokens, "NoPrep") {
-  //    c: Constituent => MentionTypeFeatures.NoPrep(c)
-  //  }
-  //
-  //  val OnePrepFeature = property(tokens, "OnePrep") {
-  //    c: Constituent => MentionTypeFeatures.OnePrep(c)
-  //  }
-  //
-  //  val TwoPrepFeature = property(tokens, "TwoPrep") {
-  //    c: Constituent => MentionTypeFeatures.TwoPrep(c)
-  //  }
-  //
-  //  val MoreThanTwoPrepFeature = property(tokens, "MoreThanTwoPrep") {
-  //    c: Constituent => MentionTypeFeatures.MoreThanTwoPrep(c)
-  //  }
-  //
-  //  val NoVerbFeature = property(tokens, "NoVerb") {
-  //    c: Constituent => MentionTypeFeatures.NoVerb(c)
-  //  }
-  //
-  //  val NoCommaFeature = property(tokens, "NoComma") {
-  //    c: Constituent => MentionTypeFeatures.NoComma(c)
-  //  }
-  //
-  //  val POSIndexBagFeature = property(tokens, "POSIndexBag") {
-  //    c: Constituent => MentionTypeFeatures.PosIndexBag(c).toList
-  //  }
-  //
-  //  val WordIndexBagFeature = property(tokens, "WordIndexBag") {
-  //    c: Constituent => MentionTypeFeatures.WordIndexBag(c).toList
-  //  }
-  //
-  //  val POSWordIndexBagFeature = property(tokens, "POSWordIndexBag") {
-  //    c: Constituent => MentionTypeFeatures.PosWordIndexBag(c).toList
-  //  }
-  //
-  //  val POSEndWordIndexBagFeature = property(tokens, "POSEndWordIndexBag") {
-  //    c: Constituent => MentionTypeFeatures.PosEndWordIndexBag(c).toList
-  //  }
-  //
-  //  val WordBCIndexBagFeature = property(tokens, "WordBCIndexBag") {
-  //    c: Constituent => MentionTypeFeatures.WordBCIndexBag(c).toList
-  //  }
-  //
-  //  val POSWordBCIndexBagFeature = property(tokens, "POSWordBCIndexBag") {
-  //    c: Constituent => MentionTypeFeatures.PosWordBCIndexBag(c).toList
-  //  }
-  //
-  //  val POSEndWordBCIndexBagFeature = property(tokens, "POSEndWordBCIndexBag") {
-  //    c: Constituent => MentionTypeFeatures.PosEndWordBCIndexBag(c).toList
-  //  }
-  //
-  //  val ParseExactFeature = property(tokens, "ParseExact") {
-  //    c: Constituent => MentionTypeFeatures.ParseExact(c).toList
-  //  }
-  //
-  //  val ParseCoverFeature = property(tokens, "ParseCover") {
-  //    c: Constituent => MentionTypeFeatures.ParseCover(c).toList
-  //  }
-  //
-  //  val ContextLeftWordFeature = property(tokens, "ContextLeftWord") {
-  //    c: Constituent => MentionTypeFeatures.ContextLeftWord(c)
-  //  }
-  //
-  //  val ContextLeftPOSFeature = property(tokens, "ContextLeftPOS") {
-  //    c: Constituent => MentionTypeFeatures.ContextLeftPos(c)
-  //  }
-  //
-  //  val ContextRightWordFeature = property(tokens, "ContextRightWord") {
-  //    c: Constituent => MentionTypeFeatures.ContextRightWord(c)
-  //  }
-  //
-  //  val ContextRightPOSFeature = property(tokens, "ContextRightPOS") {
-  //    c: Constituent => MentionTypeFeatures.ContextRightPos(c)
-  //  }
-  //
-  //  val NERLabelsFeature = property(tokens, "NERLabels") {
-  //    c: Constituent => MentionTypeFeatures.NerLabels(c).toList
-  //  }
-  //
-  //  val WikiAttributesFeature = property(tokens, "WikiAttributes") {
-  //    c: Constituent => MentionTypeFeatures.WikiAttributes(c).toList
-  //  }
+//  todo@bhargav - Investigate
+//  Following commented features were missing in the final version
+//  of Relation_Extraction_0.4
+//    val NoPrepFeature = property(tokens, "NoPrep") {
+//      c: Constituent => MentionTypeFeatures.NoPrep(c)
+//    }
+//
+//    val OnePrepFeature = property(tokens, "OnePrep") {
+//      c: Constituent => MentionTypeFeatures.OnePrep(c)
+//    }
+//
+//    val TwoPrepFeature = property(tokens, "TwoPrep") {
+//      c: Constituent => MentionTypeFeatures.TwoPrep(c)
+//    }
+//
+//    val MoreThanTwoPrepFeature = property(tokens, "MoreThanTwoPrep") {
+//      c: Constituent => MentionTypeFeatures.MoreThanTwoPrep(c)
+//    }
+//
+//    val NoVerbFeature = property(tokens, "NoVerb") {
+//      c: Constituent => MentionTypeFeatures.NoVerb(c)
+//    }
+//
+//    val NoCommaFeature = property(tokens, "NoComma") {
+//      c: Constituent => MentionTypeFeatures.NoComma(c)
+//    }
+//
+//    val POSIndexBagFeature = property(tokens, "POSIndexBag") {
+//      c: Constituent => MentionTypeFeatures.PosIndexBag(c).toList
+//    }
+//
+//    val WordIndexBagFeature = property(tokens, "WordIndexBag") {
+//      c: Constituent => MentionTypeFeatures.WordIndexBag(c).toList
+//    }
+//
+//    val POSWordIndexBagFeature = property(tokens, "POSWordIndexBag") {
+//      c: Constituent => MentionTypeFeatures.PosWordIndexBag(c).toList
+//    }
+//
+//    val POSEndWordIndexBagFeature = property(tokens, "POSEndWordIndexBag") {
+//      c: Constituent => MentionTypeFeatures.PosEndWordIndexBag(c).toList
+//    }
+//
+//    val WordBCIndexBagFeature = property(tokens, "WordBCIndexBag") {
+//      c: Constituent => MentionTypeFeatures.WordBCIndexBag(c).toList
+//    }
+//
+//    val POSWordBCIndexBagFeature = property(tokens, "POSWordBCIndexBag") {
+//      c: Constituent => MentionTypeFeatures.PosWordBCIndexBag(c).toList
+//    }
+//
+//    val POSEndWordBCIndexBagFeature = property(tokens, "POSEndWordBCIndexBag") {
+//      c: Constituent => MentionTypeFeatures.PosEndWordBCIndexBag(c).toList
+//    }
+//
+//    val ParseExactFeature = property(tokens, "ParseExact") {
+//      c: Constituent => MentionTypeFeatures.ParseExact(c).toList
+//    }
+//
+//    val ParseCoverFeature = property(tokens, "ParseCover") {
+//      c: Constituent => MentionTypeFeatures.ParseCover(c).toList
+//    }
+//
+//    val ContextLeftWordFeature = property(tokens, "ContextLeftWord") {
+//      c: Constituent => MentionTypeFeatures.ContextLeftWord(c)
+//    }
+//
+//    val ContextLeftPOSFeature = property(tokens, "ContextLeftPOS") {
+//      c: Constituent => MentionTypeFeatures.ContextLeftPos(c)
+//    }
+//
+//    val ContextRightWordFeature = property(tokens, "ContextRightWord") {
+//      c: Constituent => MentionTypeFeatures.ContextRightWord(c)
+//    }
+//
+//    val ContextRightPOSFeature = property(tokens, "ContextRightPOS") {
+//      c: Constituent => MentionTypeFeatures.ContextRightPos(c)
+//    }
+//
+//    val NERLabelsFeature = property(tokens, "NERLabels") {
+//      c: Constituent => MentionTypeFeatures.NerLabels(c).toList
+//    }
+//
+//    val WikiAttributesFeature = property(tokens, "WikiAttributes") {
+//      c: Constituent => MentionTypeFeatures.WikiAttributes(c).toList
+//    }
 
   val SurroundingWordsFeature = property(tokens, "SurroundingWords") {
     c: Constituent => MentionTypeFeatures.SurroundingWords(c).toList
@@ -792,6 +791,8 @@ object REDataModel extends DataModel {
     s: SemanticRelation => sanitizeFeature(RelationFeatures.LastPrepStringInBetweenbc(s, 10))
   }
 
+  // todo@bhargav - Feature not implemented correctly in the Relation_Extraction_0.4 (illinois-mention-relation)
+//  package. Follow up with Zefu for this.
   //  val M1WikiAttributesFeature = property(pairedRelations, "M1WikiAttributes") {
   //    s: SemanticRelation =>
   //      val attributeList = RelationFeatures.M1WikiAttributes(s))

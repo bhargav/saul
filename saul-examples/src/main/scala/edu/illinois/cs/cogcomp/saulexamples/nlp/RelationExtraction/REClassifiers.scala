@@ -4,9 +4,6 @@ import edu.illinois.cs.cogcomp.core.datastructures.textannotation.Constituent
 import edu.illinois.cs.cogcomp.illinoisRE.data.SemanticRelation
 import edu.illinois.cs.cogcomp.lbjava.learn.SupportVectorMachine
 import edu.illinois.cs.cogcomp.saul.classifier.Learnable
-import edu.illinois.cs.cogcomp.saul.constraint.ConstraintTypeConversion._
-
-import edu.illinois.cs.cogcomp.saul.conversions.LBPConversion._
 
 import edu.illinois.cs.cogcomp.saulexamples.nlp.RelationExtraction.REDataModel._
 
@@ -103,14 +100,12 @@ object REClassifiers {
     def label = mentionFineLabel
     override def feature = using(mentionFeatures)
     override lazy val classifier = new SupportVectorMachine(1, 0.1, -1, "L2LOSS_SVM_DUAL")
-    override val loggging = true
   }
 
   object mentionTypeCoarseClassifier extends Learnable[Constituent](REDataModel) {
     def label = mentionCoarseLabel
     override def feature = using(mentionFeatures)
     override lazy val classifier = new SupportVectorMachine(1, 0.1, -1, "L2LOSS_SVM_DUAL")
-    override val loggging = true
   }
 
   object relationTypeFineClassifier extends Learnable[SemanticRelation](REDataModel) {

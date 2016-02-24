@@ -15,22 +15,26 @@ import scala.io.Source
 /** Created by Bhargav Mangipudi on 1/28/16.
   */
 object RelationExtractionApp {
+  /** Enumerates Experiment Type */
   object REExperimentType extends Enumeration {
     val RunMentionCV, RunRelationCV = Value
   }
 
+  /** Main method */
   def main(args: Array[String]): Unit = {
     val experimentType = REExperimentType.RunRelationCV
 
-    val docs = loadDataFromCache.toList
+    val docs = loadDataFromCache.toIterable
 
     val numSentences = docs.map(_.getNumberOfSentences).sum
     println(s"Total number of sentences = $numSentences")
 
     docs.foreach(originalTA => {
       val tempDoc: Document = new Document(originalTA)
+
+//      Method adds candidates to CANDIDATE_MENTION_VIEW View to the TextAnnotation instance
+//      Also adds a CHUNK_PARSE and a SHALLOW_PARSE
       MentionDetector.labelDocMentionCandidates(tempDoc)
-      assert(originalTA.equals(tempDoc.getTextAnnotation))
 
       createTypedCandidateMentions(originalTA, originalTA.getView(Constants.GOLD_MENTION_VIEW).asInstanceOf[SpanLabelView])
     })
@@ -40,13 +44,13 @@ object RelationExtractionApp {
     def setupDataModelForFold(fold: Int) = {
       println(s"Running fold $fold")
 
-      val zipDocs = docs.zipWithIndex
-      val trainDocs = zipDocs.filterNot({ case (doc, index) => index % numFolds == fold }).map(_._1)
-      val testDocs = zipDocs.filter({ case (doc, index) => index % numFolds == fold }).map(_._1)
+      val groupedDocs = docs.zipWithIndex.groupBy({ case (doc, index) => index % numFolds == fold })
+      val testDocs = groupedDocs(true).map(_._1)
+      val trainDocs = groupedDocs(false).map(_._1)
 
       REDataModel.clearInstances
       REDataModel.documents.populate(trainDocs)
-      REDataModel.documents.populate(testDocs, false)
+      REDataModel.documents.populate(testDocs, train = false)
 
       (trainDocs, testDocs)
     }
@@ -82,9 +86,10 @@ object RelationExtractionApp {
           s" / ${REDataModel.pairedRelations.getTestingInstances.size}")
 
         REClassifiers.relationTypeFineClassifier.forget
-        REClassifiers.relationTypeFineClassifier.learn(1)
-
         REClassifiers.relationTypeCoarseClassifier.forget
+
+        // Pre-train
+        REClassifiers.relationTypeFineClassifier.learn(1)
         REClassifiers.relationTypeCoarseClassifier.learn(1)
 
         (evaluationRelationTypeClassifier, fold)
@@ -175,7 +180,7 @@ object RelationExtractionApp {
 
     evaluate(REClassifiers.relationTypeFineClassifier(_), _.getFineLabel) ::
       evaluate(REClassifiers.relationTypeCoarseClassifier(_), _.getCoarseLabel) ::
-      evaluate(REConstrainedClassifiers.relationTypeFineHierarchyConstrained.classifier.discreteValue, _.getFineLabel) :: Nil
+      evaluate(REConstrainedClassifiers.relationHierarchyConstrainedClassifier.classifier.discreteValue, _.getFineLabel) :: Nil
   }
 
   def createTypedCandidateMentions(ta: TextAnnotation, goldTypedView: SpanLabelView) {
@@ -197,6 +202,11 @@ object RelationExtractionApp {
     ta.addView(Constants.TYPED_CANDIDATE_MENTION_VIEW, typedView)
   }
 
+  /** Method to load ACE Documents
+    * Attempts to fetch the serialized TA instances directly and updates cache if a particular
+    * document is not present in the cache directory.
+    * @return List of TextAnnotation items each of them representing a single document
+    */
   def loadDataFromCache: Iterator[TextAnnotation] = {
     val masterFileList = ResourceManager.getProjectRoot + "/../data/ace2004/allfiles"
     val cacheBasePath = ResourceManager.getProjectRoot + "/../data_cache/"

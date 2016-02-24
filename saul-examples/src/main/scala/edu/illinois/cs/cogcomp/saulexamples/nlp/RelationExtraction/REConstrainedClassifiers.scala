@@ -8,7 +8,10 @@ import edu.illinois.cs.cogcomp.saul.constraint.ConstraintTypeConversion._
 /** Created by Bhargav Mangipudi on 2/21/16.
   */
 object REConstrainedClassifiers {
-  object relationTypeFineHierarchyConstrained extends ConstrainedClassifier[SemanticRelation, SemanticRelation](REDataModel, relationTypeFineClassifier) {
+
+  object relationHierarchyConstrainedClassifier extends ConstrainedClassifier[SemanticRelation, SemanticRelation](
+    REDataModel,
+    relationTypeFineClassifier) {
     def subjectTo = REConstraints.relationHierarchyConstraint
   }
 }
