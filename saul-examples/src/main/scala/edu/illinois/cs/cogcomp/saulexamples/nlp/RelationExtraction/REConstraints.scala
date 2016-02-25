@@ -37,12 +37,21 @@ object REConstraints {
   val relationHierarchyConstraint = ConstrainedClassifier.constraintOf[SemanticRelation] {
     rel: SemanticRelation =>
 
-      relationHierarchy.map({ case (coarseLabel, fineLabelList) =>
+      val oneDirection = relationHierarchy.map({ case (coarseLabel, fineLabelList) =>
           // We generate the `implication` statement for each coarse label by constraining the fine labels
           // to occur from the child relations only.
-          ((relationTypeCoarseClassifier on rel) is (coarseLabel)) ==>
-            fineLabelList.map((relationTypeFineClassifier on rel) is (_)).reduce(_ or _)
+          ((relationTypeCoarseClassifier on rel) is coarseLabel) ==>
+            fineLabelList.map((relationTypeFineClassifier on rel) is _).reduce(_ or _)
       }).reduce[FirstOrderConstraint](_ and _)
+
+      val secondDirection = relationHierarchy.map({ case (coarseLabel, fineLabelList) =>
+        fineLabelList.map({ fineLbl =>
+          ((relationTypeFineClassifier on rel) is fineLbl) ==>
+            ((relationTypeCoarseClassifier on rel) is coarseLabel)
+        }).reduce[FirstOrderConstraint](_ and _)
+      }).reduce[FirstOrderConstraint](_ and _)
+
+    oneDirection &&& secondDirection
   }
 
   private val relationToFirstEntityMapping: Map[String, (List[String], List[String])] = Map(

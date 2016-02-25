@@ -86,20 +86,20 @@ object RelationExtractionApp {
         println(s"Total number of relations = ${REDataModel.pairedRelations.getTrainingInstances.size}" +
           s" / ${REDataModel.pairedRelations.getTestingInstances.size}")
 
-        REClassifiers.mentionTypeCoarseClassifier.forget
+//        REClassifiers.mentionTypeCoarseClassifier.forget
         REClassifiers.relationTypeFineClassifier.forget
         REClassifiers.relationTypeCoarseClassifier.forget
 
         // Pre-train
-        REClassifiers.mentionTypeCoarseClassifier.learn(1)
-        REClassifiers.relationTypeFineClassifier.learn(1)
-        REClassifiers.relationTypeCoarseClassifier.learn(1)
+//        REClassifiers.mentionTypeCoarseClassifier.learn(1)
+        REClassifiers.relationTypeFineClassifier.learn(5)
+        REClassifiers.relationTypeCoarseClassifier.learn(5)
 
-        JointTrain.train(
-          REDataModel,
-          REConstrainedClassifiers.entityTypeConstrainedClassifier :: REConstrainedClassifiers.relationHierarchyConstrainedClassifier :: Nil,
-          5
-        )
+//        JointTrain.train(
+//          REDataModel,
+//          REConstrainedClassifiers.entityTypeConstrainedClassifier :: REConstrainedClassifiers.relationHierarchyConstrainedClassifier :: Nil,
+//          5
+//        )
 
         (evaluationRelationTypeClassifier, fold)
       })
@@ -189,8 +189,8 @@ object RelationExtractionApp {
 
       evaluate(REClassifiers.relationTypeFineClassifier(_), _.getFineLabel) ::
       evaluate(REClassifiers.relationTypeCoarseClassifier(_), _.getCoarseLabel) ::
-      evaluate(REConstrainedClassifiers.relationHierarchyConstrainedClassifier.classifier.discreteValue, _.getFineLabel) ::
-      evaluate(REConstrainedClassifiers.entityTypeConstrainedClassifier.classifier.discreteValue, _.getCoarseLabel) :: Nil
+      evaluate(REConstrainedClassifiers.relationHierarchyConstrainedClassifier.classifier.discreteValue, _.getFineLabel) :: Nil
+//      evaluate(REConstrainedClassifiers.entityTypeConstrainedClassifier.classifier.discreteValue, _.getCoarseLabel) :: Nil
   }
 
   def createTypedCandidateMentions(ta: TextAnnotation, goldTypedView: SpanLabelView) {
