@@ -10,6 +10,8 @@ import edu.illinois.cs.cogcomp.saulexamples.nlp.RelationExtraction.REDataModel._
 /** Created by Bhargav Mangipudi on 1/28/16.
   */
 object REClassifiers {
+  var useRelationBrownFeatures = false
+
   private val mentionFeatures = List(
     //      NoPrepFeature, OnePrepFeature, TwoPrepFeature, MoreThanTwoPrepFeature, NoVerbFeature, NoCommaFeature,
     InOrgPoliticalListFeature, InOrgTerroristListFeature,
@@ -85,15 +87,17 @@ object REClassifiers {
   //      FeaturesOfFirstPrep,
   //      FeaturesOfSecondPrep,
   //      FeaturesOfLastPrep,
-  //
-  //      BowM1bc10Feature, BowM2bc10Feature,
-  //      HwM1bc10Feature, HwM2bc10Feature,
-  //      LhwM1bc10Feature, HwM1Rbc10Feature, LhwM2bc10Feature, HwM2Rbc10Feature, LLhwM1bc10Feature, LhwM1Rbc10Feature, HwM1RRbc10Feature, LLhwM2bc10Feature, LhwM2Rbc10Feature, HwM2RRbc10Feature,
-  //      PM1aPM2bc10Feature, M1PaM2Pbc10Feature, PPM1aPPM2bc10Feature, PM1PaPM2Pbc10Feature, M1PPaM2PPbc10Feature,
-  //      HwM1M2bc10Feature,
-  //      WordBetweenSinglebc10Feature, WordBetweenFirstbc10Feature, WordBetweenLastbc10Feature,
-  //      M1HeadWordAndDepParentWordbc10Feature, M2HeadWordAndDepParentWordbc10Feature,
-  //      SinglePrepStringInBetweenbc10Feature, FirstPrepStringInBetweenbc10Feature, LastPrepStringInBetweenbc10Feature
+  )
+
+  private val relationBrownClusterFeatures = List(
+        BowM1bc10Feature, BowM2bc10Feature,
+        HwM1bc10Feature, HwM2bc10Feature,
+        LhwM1bc10Feature, HwM1Rbc10Feature, LhwM2bc10Feature, HwM2Rbc10Feature, LLhwM1bc10Feature, LhwM1Rbc10Feature, HwM1RRbc10Feature, LLhwM2bc10Feature, LhwM2Rbc10Feature, HwM2RRbc10Feature,
+        PM1aPM2bc10Feature, M1PaM2Pbc10Feature, PPM1aPPM2bc10Feature, PM1PaPM2Pbc10Feature, M1PPaM2PPbc10Feature,
+        HwM1M2bc10Feature,
+        WordBetweenSinglebc10Feature, WordBetweenFirstbc10Feature, WordBetweenLastbc10Feature,
+        M1HeadWordAndDepParentWordbc10Feature, M2HeadWordAndDepParentWordbc10Feature,
+        SinglePrepStringInBetweenbc10Feature, FirstPrepStringInBetweenbc10Feature, LastPrepStringInBetweenbc10Feature
   )
 
   object mentionTypeFineClassifier extends Learnable[Constituent](REDataModel) {
@@ -110,13 +114,13 @@ object REClassifiers {
 
   object relationTypeFineClassifier extends Learnable[SemanticRelation](REDataModel) {
     def label = relationFineLabel
-    override def feature = using(relationFeatures)
+    override def feature = if (useRelationBrownFeatures) using(relationFeatures ::: relationBrownClusterFeatures) else using(relationFeatures)
     override lazy val classifier = new SupportVectorMachine(1, 0.1, -1, "L2LOSS_SVM_DUAL")
   }
 
   object relationTypeCoarseClassifier extends Learnable[SemanticRelation](REDataModel) {
     override def label = relationCoarseLabel
-    override def feature = using(relationFeatures)
+    override def feature = if (useRelationBrownFeatures) using(relationFeatures ::: relationBrownClusterFeatures) else using(relationFeatures)
     override lazy val classifier = new SupportVectorMachine(1, 0.1, -1, "L2LOSS_SVM_DUAL")
   }
 }

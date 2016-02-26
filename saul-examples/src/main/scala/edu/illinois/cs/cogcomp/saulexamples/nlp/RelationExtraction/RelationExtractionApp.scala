@@ -8,7 +8,6 @@ import edu.illinois.cs.cogcomp.illinoisRE.data.{ SemanticRelation, DataLoader }
 import edu.illinois.cs.cogcomp.illinoisRE.mention.{ MentionTyper, MentionDetector }
 import edu.illinois.cs.cogcomp.lbjava.classify.TestDiscrete
 import edu.illinois.cs.cogcomp.lbjava.learn.Softmax
-import edu.illinois.cs.cogcomp.saul.classifier.JointTrain
 
 import scala.collection.JavaConversions._
 import scala.io.Source
@@ -18,12 +17,15 @@ import scala.io.Source
 object RelationExtractionApp {
   /** Enumerates Experiment Type */
   object REExperimentType extends Enumeration {
-    val RunMentionCV, RunRelationCV = Value
+    val RunMentionCV, RunRelationCV, RunRelationCVWithBrownFeatures = Value
   }
 
   /** Main method */
   def main(args: Array[String]): Unit = {
-    val experimentType = REExperimentType.RunRelationCV
+    val experimentType = REExperimentType.values.find(_.toString == args(0)).getOrElse(REExperimentType.RunRelationCV)
+
+    if (experimentType == REExperimentType.RunRelationCVWithBrownFeatures)
+      REClassifiers.useRelationBrownFeatures = true
 
     val docs = loadDataFromCache.toIterable
 
@@ -63,7 +65,7 @@ object RelationExtractionApp {
         println(s"Total number of mentions = ${REDataModel.tokens.getTrainingInstances.size}" +
           s" / ${REDataModel.tokens.getTestingInstances.size}")
 
-        REClassifiers.mentionTypeFineClassifier.forget
+        REClassifiers.mentionTypeFineClassifier.forget()
         REClassifiers.mentionTypeFineClassifier.learn(1)
 
         testMentionTypeClassifier(testDocs, Constants.PRED_MENTION_VIEW)
@@ -86,20 +88,13 @@ object RelationExtractionApp {
         println(s"Total number of relations = ${REDataModel.pairedRelations.getTrainingInstances.size}" +
           s" / ${REDataModel.pairedRelations.getTestingInstances.size}")
 
-//        REClassifiers.mentionTypeCoarseClassifier.forget
-        REClassifiers.relationTypeFineClassifier.forget
-        REClassifiers.relationTypeCoarseClassifier.forget
+//        REClassifiers.mentionTypeCoarseClassifier.forget()
+        REClassifiers.relationTypeFineClassifier.forget()
+        REClassifiers.relationTypeCoarseClassifier.forget()
 
-        // Pre-train
-//        REClassifiers.mentionTypeCoarseClassifier.learn(1)
+//        REClassifiers.mentionTypeCoarseClassifier.learn(5)
         REClassifiers.relationTypeFineClassifier.learn(5)
         REClassifiers.relationTypeCoarseClassifier.learn(5)
-
-//        JointTrain.train(
-//          REDataModel,
-//          REConstrainedClassifiers.entityTypeConstrainedClassifier :: REConstrainedClassifiers.relationHierarchyConstrainedClassifier :: Nil,
-//          5
-//        )
 
         (evaluationRelationTypeClassifier, fold)
       })
@@ -149,7 +144,7 @@ object RelationExtractionApp {
 
         if (goldMatch.length == 1) {
           mentionDetectionPerformance.reportPrediction("MENTION", "MENTION")
-          mentionTypePerformance.reportPrediction(cc.getLabel, goldMatch(0).getLabel)
+          mentionTypePerformance.reportPrediction(cc.getLabel, goldMatch.head.getLabel)
         } else {
           mentionDetectionPerformance.reportPrediction("MENTION", "NO_MENTION")
           mentionTypePerformance.reportPrediction(cc.getLabel, "NO_MENTION")
@@ -161,11 +156,11 @@ object RelationExtractionApp {
           .filter(cc => cc.getStartSpan == gc.getStartSpan && cc.getEndSpan == gc.getEndSpan).toList
         assert(predMatch.length <= 1)
 
-        if (predMatch.length == 0)
+        if (predMatch.isEmpty)
           mentionDetectionPerformance.reportPrediction("NO_MENTION", "MENTION")
         else {
-          if (!gc.getLabel.equals(predMatch(0).getLabel))
-            mentionTypePerformance.reportPrediction(predMatch(0).getLabel, gc.getLabel)
+          if (!gc.getLabel.equals(predMatch.head.getLabel))
+            mentionTypePerformance.reportPrediction(predMatch.head.getLabel, gc.getLabel)
         }
       })
     }
@@ -190,7 +185,6 @@ object RelationExtractionApp {
       evaluate(REClassifiers.relationTypeFineClassifier(_), _.getFineLabel) ::
       evaluate(REClassifiers.relationTypeCoarseClassifier(_), _.getCoarseLabel) ::
       evaluate(REConstrainedClassifiers.relationHierarchyConstrainedClassifier.classifier.discreteValue, _.getFineLabel) :: Nil
-//      evaluate(REConstrainedClassifiers.entityTypeConstrainedClassifier.classifier.discreteValue, _.getCoarseLabel) :: Nil
   }
 
   def createTypedCandidateMentions(ta: TextAnnotation, goldTypedView: SpanLabelView) {
@@ -227,7 +221,7 @@ object RelationExtractionApp {
       if (outputFile.exists()) {
         val e = new ObjectInputStream(new FileInputStream(outputFile.getPath))
         val ta = e.readObject.asInstanceOf[TextAnnotation]
-        e.close
+        e.close()
 
         ta
       } else {
@@ -238,9 +232,9 @@ object RelationExtractionApp {
           val f = new FileOutputStream(outputFile)
           val e = new ObjectOutputStream(f)
           e.writeObject(ta)
-          e.flush
+          e.flush()
         } catch {
-          case ex: Exception => ex.printStackTrace; outputFile.getAbsolutePath
+          case ex: Exception => ex.printStackTrace(); outputFile.getAbsolutePath
         }
 
         ta
