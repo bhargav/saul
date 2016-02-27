@@ -6,7 +6,6 @@ import edu.illinois.cs.cogcomp.core.datastructures.textannotation.{ Constituent,
 import edu.illinois.cs.cogcomp.illinoisRE.common.{ Util, Document, ResourceManager, Constants }
 import edu.illinois.cs.cogcomp.illinoisRE.data.{ SemanticRelation, DataLoader }
 import edu.illinois.cs.cogcomp.illinoisRE.mention.{ MentionTyper, MentionDetector }
-import edu.illinois.cs.cogcomp.lbjava.classify.TestDiscrete
 import edu.illinois.cs.cogcomp.lbjava.learn.Softmax
 
 import scala.collection.JavaConversions._
@@ -22,25 +21,16 @@ object RelationExtractionApp {
 
   /** Main method */
   def main(args: Array[String]): Unit = {
-    val experimentType = REExperimentType.values.find(_.toString == args(0)).getOrElse(REExperimentType.RunRelationCV)
+    val experimentType = REExperimentType.values.find(_.toString == args.headOption.getOrElse()).getOrElse(REExperimentType.RunRelationCVWithBrownFeatures)
 
     if (experimentType == REExperimentType.RunRelationCVWithBrownFeatures)
       REClassifiers.useRelationBrownFeatures = true
 
     val docs = loadDataFromCache.toIterable
+    docs.foreach(preProcessDocument)
 
     val numSentences = docs.map(_.getNumberOfSentences).sum
     println(s"Total number of sentences = $numSentences")
-
-    docs.foreach(originalTA => {
-      val tempDoc: Document = new Document(originalTA)
-
-//      Method adds candidates to CANDIDATE_MENTION_VIEW View to the TextAnnotation instance
-//      Also adds a CHUNK_PARSE and a SHALLOW_PARSE
-      MentionDetector.labelDocMentionCandidates(tempDoc)
-
-      createTypedCandidateMentions(originalTA, originalTA.getView(Constants.GOLD_MENTION_VIEW).asInstanceOf[SpanLabelView])
-    })
 
     val numFolds = 5
 
@@ -60,39 +50,38 @@ object RelationExtractionApp {
 
     if (experimentType == REExperimentType.RunMentionCV) {
       (0 until numFolds).map({ fold =>
-        val (_, testDocs) = setupDataModelForFold(fold)
+        setupDataModelForFold(fold)
 
         println(s"Total number of mentions = ${REDataModel.tokens.getTrainingInstances.size}" +
           s" / ${REDataModel.tokens.getTestingInstances.size}")
 
         REClassifiers.mentionTypeFineClassifier.forget()
-        REClassifiers.mentionTypeFineClassifier.learn(1)
+        REClassifiers.mentionTypeFineClassifier.learn(5)
 
-        testMentionTypeClassifier(testDocs, Constants.PRED_MENTION_VIEW)
+        addMentionPredictionView(REDataModel.documents.getTestingInstances, Constants.PRED_MENTION_VIEW)
 
-        val evalOnFold = evaluateMentionTypeClassifier(testDocs, Constants.GOLD_MENTION_VIEW, Constants.PRED_MENTION_VIEW)
-
-        (evalOnFold, fold)
+        (evaluateMentionTypeClassifier, fold)
       }).toList
         .foreach({
-          case ((untyped, typed), index) =>
-            println(s"Fold number $index")
-            untyped.printPerformance(System.out)
-            typed.printPerformance(System.out)
+          case (eval, fold) =>
+            println(s"Fold number $fold")
+            eval.zip(List("Mention Fine")).foreach({
+              case ((recall, predicted, correct), clf) =>
+                println(s"Classifier - $clf - ${(recall, predicted, correct)}")
+                println(s"Accuracy - ${correct.toDouble / predicted * 100.0} // Recall - ${correct.toDouble / recall * 100.0} // F1 - ${Util.calculateF1(correct, recall, predicted)}")
+            })
         })
 
-    } else if (experimentType == REExperimentType.RunRelationCV) {
+    } else if (experimentType == REExperimentType.RunRelationCV || experimentType == REExperimentType.RunRelationCVWithBrownFeatures) {
       (0 until numFolds).map({ fold =>
         setupDataModelForFold(fold)
 
         println(s"Total number of relations = ${REDataModel.pairedRelations.getTrainingInstances.size}" +
           s" / ${REDataModel.pairedRelations.getTestingInstances.size}")
 
-//        REClassifiers.mentionTypeCoarseClassifier.forget()
         REClassifiers.relationTypeFineClassifier.forget()
         REClassifiers.relationTypeCoarseClassifier.forget()
 
-//        REClassifiers.mentionTypeCoarseClassifier.learn(5)
         REClassifiers.relationTypeFineClassifier.learn(5)
         REClassifiers.relationTypeCoarseClassifier.learn(5)
 
@@ -111,99 +100,87 @@ object RelationExtractionApp {
     }
   }
 
-  def testMentionTypeClassifier(testDocs: Iterable[TextAnnotation], predictionViewName: String): Unit = {
-    for (doc <- testDocs) {
+  def addMentionPredictionView(testDocs: Iterable[TextAnnotation], predictionViewName: String): Unit = {
+    val softMax = new Softmax()
+
+    testDocs.foreach({ doc =>
       // Predictions are added as a new view to the TA
       val typedView = new SpanLabelView(predictionViewName, "predict", doc, 1.0, true)
-      val softmax = new Softmax()
 
-      doc.getView(Constants.CANDIDATE_MENTION_VIEW).getConstituents.foreach({
-        c: Constituent =>
+      doc.getView(Constants.CANDIDATE_MENTION_VIEW).getConstituents.foreach({ c: Constituent =>
           val label = REClassifiers.mentionTypeFineClassifier(c)
-          val scoreSet = softmax.normalize(REClassifiers.mentionTypeFineClassifier.classifier.scores(c))
+          val scoreSet = softMax.normalize(REClassifiers.mentionTypeFineClassifier.classifier.scores(c))
           typedView.addSpanLabel(c.getStartSpan, c.getEndSpan, label, scoreSet.get(label))
       })
 
       doc.addView(predictionViewName, typedView)
-    }
+    })
   }
 
-  def evaluateMentionTypeClassifier(testDocs: Iterable[TextAnnotation], goldViewName: String, predictionViewName: String): (TestDiscrete, TestDiscrete) = {
-    val mentionDetectionPerformance = new TestDiscrete()
-    val mentionTypePerformance = new TestDiscrete()
+  def evaluateMentionTypeClassifier: List[(Int, Int, Int)] = {
+    val testInstances = REDataModel.tokens.getTestingInstances
+    val excludeList = MentionTyper.NONE_MENTION :: Nil
 
-    val goldMentionList = testDocs.map(_.getView(goldViewName))
-    val predictedMentionList = testDocs.map(_.getView(predictionViewName))
-
-    assert(goldMentionList.size == predictedMentionList.size)
-
-    for ((goldView, predictView) <- goldMentionList.zip(predictedMentionList)) {
-      predictView.getConstituents.filterNot(_.getLabel == MentionTyper.NONE_MENTION).foreach({ cc: Constituent =>
-        val goldMatch = goldView.getConstituents.filter(gc => cc.getStartSpan == gc.getStartSpan && cc.getEndSpan == gc.getEndSpan).toList
-        assert(goldMatch.length <= 1)
-
-        if (goldMatch.length == 1) {
-          mentionDetectionPerformance.reportPrediction("MENTION", "MENTION")
-          mentionTypePerformance.reportPrediction(cc.getLabel, goldMatch.head.getLabel)
-        } else {
-          mentionDetectionPerformance.reportPrediction("MENTION", "NO_MENTION")
-          mentionTypePerformance.reportPrediction(cc.getLabel, "NO_MENTION")
-        }
-      })
-
-      goldView.getConstituents.foreach({ gc: Constituent =>
-        val predMatch = predictView.getConstituents.filterNot(_.getLabel == MentionTyper.NONE_MENTION)
-          .filter(cc => cc.getStartSpan == gc.getStartSpan && cc.getEndSpan == gc.getEndSpan).toList
-        assert(predMatch.length <= 1)
-
-        if (predMatch.isEmpty)
-          mentionDetectionPerformance.reportPrediction("NO_MENTION", "MENTION")
-        else {
-          if (!gc.getLabel.equals(predMatch.head.getLabel))
-            mentionTypePerformance.reportPrediction(predMatch.head.getLabel, gc.getLabel)
-        }
-      })
-    }
-
-    (mentionDetectionPerformance, mentionTypePerformance)
+    evaluate[Constituent](testInstances, REClassifiers.mentionTypeFineClassifier(_), _.getLabel, excludeList) :: Nil
   }
 
   def evaluationRelationTypeClassifier: List[(Int, Int, Int)] = {
-    def evaluate(predf: SemanticRelation => String, goldf: SemanticRelation => String): (Int, Int, Int) = {
-      REDataModel.pairedRelations.getTestingInstances.foldLeft((0, 0, 0))({
-        case ((r, p, c), rel) =>
-          val goldLabel = goldf(rel)
-          val predictedLabel = predf(rel)
-          val rInc = if (goldLabel != Constants.NO_RELATION) 1 else 0
-          val pInc = if (predictedLabel != Constants.NO_RELATION) 1 else 0
-          val cInc = if (pInc == 1 && goldLabel.equalsIgnoreCase(predictedLabel)) 1 else 0
+      val testInstances = REDataModel.pairedRelations.getTestingInstances
+      val excludeList = Constants.NO_RELATION :: Nil
 
-          (r + rInc, p + pInc, c + cInc)
-      })
-    }
-
-      evaluate(REClassifiers.relationTypeFineClassifier(_), _.getFineLabel) ::
-      evaluate(REClassifiers.relationTypeCoarseClassifier(_), _.getCoarseLabel) ::
-      evaluate(REConstrainedClassifiers.relationHierarchyConstrainedClassifier.classifier.discreteValue, _.getFineLabel) :: Nil
+      evaluate[SemanticRelation](testInstances, REClassifiers.relationTypeFineClassifier(_), _.getFineLabel, excludeList) ::
+      evaluate[SemanticRelation](testInstances, REClassifiers.relationTypeCoarseClassifier(_), _.getCoarseLabel, excludeList) ::
+      evaluate[SemanticRelation](testInstances,
+        REConstrainedClassifiers.relationHierarchyConstrainedClassifier.classifier.discreteValue,
+        _.getFineLabel,
+        excludeList) :: Nil
   }
 
-  def createTypedCandidateMentions(ta: TextAnnotation, goldTypedView: SpanLabelView) {
-    val mentionView: SpanLabelView = ta.getView(Constants.CANDIDATE_MENTION_VIEW).asInstanceOf[SpanLabelView]
-    val typedView: SpanLabelView = new SpanLabelView(Constants.TYPED_CANDIDATE_MENTION_VIEW, "alignFromGold", ta, 1.0, true)
-    import scala.collection.JavaConversions._
 
-    for (c <- mentionView.getConstituents) {
-      var label: String = MentionTyper.NONE_MENTION
+  private def evaluate[T](testInstances: Iterable[T],
+                          predictionLabeler: T => String,
+                          goldLabeler: T => String,
+                          exclude: List[String] = List.empty): (Int, Int, Int) = {
+    // TODO@bhargav - Replace with TestDiscrete
+    testInstances.foldLeft((0, 0, 0))({
+      case ((gold, predicted, correct), rel) =>
+        val goldLabel = goldLabeler(rel)
+        val predictedLabel = predictionLabeler(rel)
 
-      for (tc <- goldTypedView.getConstituents) {
-        if (c.getStartSpan == tc.getStartSpan && c.getEndSpan == tc.getEndSpan) {
-          label = tc.getLabel
-        }
-      }
+        val goldInc = if (exclude.exists(_.equals(goldLabel))) 0 else 1
+        val predictedInc = if (exclude.exists(_.equals(predictedLabel))) 0 else 1
+        val correctInc = if (predictedInc == 1 && goldLabel.equals(predictedLabel)) 1 else 0
 
+        (gold + goldInc, predicted + predictedInc, correct + correctInc)
+    })
+  }
+
+
+  /** Add candidate mentions and typed-candidate mentions to the ACE Document */
+  def preProcessDocument(document: TextAnnotation) : Unit = {
+    val tempDoc: Document = new Document(document)
+
+    //      Method adds candidates to CANDIDATE_MENTION_VIEW View to the TextAnnotation instance
+    //      Also adds a CHUNK_PARSE and a SHALLOW_PARSE
+    MentionDetector.labelDocMentionCandidates(tempDoc)
+
+    val goldTypedView = document.getView(Constants.GOLD_MENTION_VIEW)
+    val mentionView = document.getView(Constants.CANDIDATE_MENTION_VIEW)
+
+    val typedView: SpanLabelView = new SpanLabelView(
+      Constants.TYPED_CANDIDATE_MENTION_VIEW,
+      "alignFromGold",
+      document,
+      1.0,
+      true)
+
+    mentionView.getConstituents.foreach({ c: Constituent =>
+      val goldOverlap = goldTypedView.getConstituents.filter(tc => c.getStartSpan == tc.getStartSpan && c.getEndSpan == tc.getEndSpan)
+      val label = if (goldOverlap.isEmpty) MentionTyper.NONE_MENTION else goldOverlap.head.getLabel
       typedView.addSpanLabel(c.getStartSpan, c.getEndSpan, label, 1.0)
-    }
-    ta.addView(Constants.TYPED_CANDIDATE_MENTION_VIEW, typedView)
+    })
+
+    document.addView(Constants.TYPED_CANDIDATE_MENTION_VIEW, typedView)
   }
 
   /** Method to load ACE Documents

@@ -5,7 +5,6 @@ import edu.illinois.cs.cogcomp.lbjava.infer.{FirstOrderConjunction, FirstOrderDi
 import edu.illinois.cs.cogcomp.saul.classifier.ConstrainedClassifier
 import edu.illinois.cs.cogcomp.saulexamples.nlp.RelationExtraction.REClassifiers._
 import edu.illinois.cs.cogcomp.saul.constraint.ConstraintTypeConversion._
-import edu.illinois.cs.cogcomp.saulexamples.nlp.RelationExtraction.RESensors
 
 /** Created by Bhargav Mangipudi on 2/21/16.
   */
