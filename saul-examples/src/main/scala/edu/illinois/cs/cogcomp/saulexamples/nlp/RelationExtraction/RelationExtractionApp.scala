@@ -132,7 +132,7 @@ object RelationExtractionApp {
     import REClassifiers._
 
     evaluate[Constituent](testInstances, "Mention Fine", fold, mentionTypeFineClassifier(_), _.getLabel, excludeList) ::
-      evaluate[Constituent](testInstances, "Mention Coarse", fold, mentionTypeCoarseClassifier(_), _.getLabel, excludeList) :: Nil
+      evaluate[Constituent](testInstances, "Mention Coarse", fold, mentionTypeCoarseClassifier(_), REDataModel.mentionCoarseLabel(_), excludeList) :: Nil
   }
 
   def evaluationRelationTypeClassifier(fold: Int): List[EvaluationResult] = {
