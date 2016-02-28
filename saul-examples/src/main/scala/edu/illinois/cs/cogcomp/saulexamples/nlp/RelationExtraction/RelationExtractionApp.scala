@@ -12,7 +12,7 @@ import scala.collection.JavaConversions._
 import scala.io.Source
 
 /** Created by Bhargav Mangipudi on 1/28/16.
- */
+  */
 object RelationExtractionApp {
 
   case class EvaluationResult(classifierName: String, foldIndex: Int, goldCount: Int, predictedCount: Int, correctCount: Int) {
@@ -200,11 +200,11 @@ object RelationExtractionApp {
   }
 
   /** Method to load ACE Documents
-   *  Attempts to fetch the serialized TA instances directly and updates cache if a particular
-   *  document is not present in the cache directory.
-   *
-   *  @return List of TextAnnotation items each of them representing a single document
-   */
+    * Attempts to fetch the serialized TA instances directly and updates cache if a particular
+    * document is not present in the cache directory.
+    *
+    * @return List of TextAnnotation items each of them representing a single document
+    */
   def loadDataFromCache: Iterator[TextAnnotation] = {
     val masterFileList = ResourceManager.getProjectRoot + "/../data/ace2004/allfiles"
     val cacheBasePath = ResourceManager.getProjectRoot + "/../data_cache/"

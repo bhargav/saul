@@ -1,7 +1,7 @@
 package edu.illinois.cs.cogcomp.saulexamples.nlp.RelationExtraction
 
 import edu.illinois.cs.cogcomp.illinoisRE.data.SemanticRelation
-import edu.illinois.cs.cogcomp.lbjava.infer.{FirstOrderConjunction, FirstOrderDisjunction, FirstOrderConstraint}
+import edu.illinois.cs.cogcomp.lbjava.infer.{ FirstOrderConjunction, FirstOrderDisjunction, FirstOrderConstraint }
 import edu.illinois.cs.cogcomp.saul.classifier.ConstrainedClassifier
 import edu.illinois.cs.cogcomp.saulexamples.nlp.RelationExtraction.REClassifiers._
 import edu.illinois.cs.cogcomp.saul.constraint.ConstraintTypeConversion._
@@ -36,21 +36,23 @@ object REConstraints {
   val relationHierarchyConstraint = ConstrainedClassifier.constraintOf[SemanticRelation] {
     rel: SemanticRelation =>
 
-      val oneDirection = relationHierarchy.map({ case (coarseLabel, fineLabelList) =>
+      val oneDirection = relationHierarchy.map({
+        case (coarseLabel, fineLabelList) =>
           // We generate the `implication` statement for each coarse label by constraining the fine labels
           // to occur from the child relations only.
           ((relationTypeCoarseClassifier on rel) is coarseLabel) ==>
             fineLabelList.map((relationTypeFineClassifier on rel) is _).reduce(_ or _)
       }).reduce[FirstOrderConstraint](_ and _)
 
-      val secondDirection = relationHierarchy.map({ case (coarseLabel, fineLabelList) =>
-        fineLabelList.map({ fineLbl =>
-          ((relationTypeFineClassifier on rel) is fineLbl) ==>
-            ((relationTypeCoarseClassifier on rel) is coarseLabel)
-        }).reduce[FirstOrderConstraint](_ and _)
+      val secondDirection = relationHierarchy.map({
+        case (coarseLabel, fineLabelList) =>
+          fineLabelList.map({ fineLbl =>
+            ((relationTypeFineClassifier on rel) is fineLbl) ==>
+              ((relationTypeCoarseClassifier on rel) is coarseLabel)
+          }).reduce[FirstOrderConstraint](_ and _)
       }).reduce[FirstOrderConstraint](_ and _)
 
-    oneDirection &&& secondDirection
+      oneDirection &&& secondDirection
   }
 
   private val relationToFirstEntityMapping: Map[String, (List[String], List[String])] = Map(
@@ -69,11 +71,13 @@ object REConstraints {
 
   val entityTypeArgumentConstraint = ConstrainedClassifier.constraintOf[SemanticRelation] {
     rel: SemanticRelation =>
-      relationToFirstEntityMapping.map({ case (coarseLabel, (firstEntityLabels, secondEntityLabels)) =>
-        ((relationTypeCoarseClassifier on rel) is (coarseLabel)) ==>
-          new FirstOrderConjunction(
-            firstEntityLabels.map((mentionTypeCoarseClassifier on RESensors.relationToFirstMention(rel)) is (_)).reduce(_ or _),
-            secondEntityLabels.map((mentionTypeCoarseClassifier on RESensors.relationToSecondMention(rel)) is (_)).reduce(_ or _))
+      relationToFirstEntityMapping.map({
+        case (coarseLabel, (firstEntityLabels, secondEntityLabels)) =>
+          ((relationTypeCoarseClassifier on rel) is (coarseLabel)) ==>
+            new FirstOrderConjunction(
+              firstEntityLabels.map((mentionTypeCoarseClassifier on RESensors.relationToFirstMention(rel)) is (_)).reduce(_ or _),
+              secondEntityLabels.map((mentionTypeCoarseClassifier on RESensors.relationToSecondMention(rel)) is (_)).reduce(_ or _)
+            )
       }).reduce[FirstOrderConstraint](_ and _)
   }
 }

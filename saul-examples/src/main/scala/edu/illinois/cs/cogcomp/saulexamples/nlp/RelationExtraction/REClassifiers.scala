@@ -90,14 +90,14 @@ object REClassifiers {
   )
 
   private val relationBrownClusterFeatures = List(
-        BowM1bc10Feature, BowM2bc10Feature,
-        HwM1bc10Feature, HwM2bc10Feature,
-        LhwM1bc10Feature, HwM1Rbc10Feature, LhwM2bc10Feature, HwM2Rbc10Feature, LLhwM1bc10Feature, LhwM1Rbc10Feature, HwM1RRbc10Feature, LLhwM2bc10Feature, LhwM2Rbc10Feature, HwM2RRbc10Feature,
-        PM1aPM2bc10Feature, M1PaM2Pbc10Feature, PPM1aPPM2bc10Feature, PM1PaPM2Pbc10Feature, M1PPaM2PPbc10Feature,
-        HwM1M2bc10Feature,
-        WordBetweenSinglebc10Feature, WordBetweenFirstbc10Feature, WordBetweenLastbc10Feature,
-        M1HeadWordAndDepParentWordbc10Feature, M2HeadWordAndDepParentWordbc10Feature,
-        SinglePrepStringInBetweenbc10Feature, FirstPrepStringInBetweenbc10Feature, LastPrepStringInBetweenbc10Feature
+    BowM1bc10Feature, BowM2bc10Feature,
+    HwM1bc10Feature, HwM2bc10Feature,
+    LhwM1bc10Feature, HwM1Rbc10Feature, LhwM2bc10Feature, HwM2Rbc10Feature, LLhwM1bc10Feature, LhwM1Rbc10Feature, HwM1RRbc10Feature, LLhwM2bc10Feature, LhwM2Rbc10Feature, HwM2RRbc10Feature,
+    PM1aPM2bc10Feature, M1PaM2Pbc10Feature, PPM1aPPM2bc10Feature, PM1PaPM2Pbc10Feature, M1PPaM2PPbc10Feature,
+    HwM1M2bc10Feature,
+    WordBetweenSinglebc10Feature, WordBetweenFirstbc10Feature, WordBetweenLastbc10Feature,
+    M1HeadWordAndDepParentWordbc10Feature, M2HeadWordAndDepParentWordbc10Feature,
+    SinglePrepStringInBetweenbc10Feature, FirstPrepStringInBetweenbc10Feature, LastPrepStringInBetweenbc10Feature
   )
 
   object mentionTypeFineClassifier extends Learnable[Constituent](REDataModel) {
