@@ -33,7 +33,7 @@ object REConstraints {
   )
 
   /** Constraint enforcing coarse-fine relation hierarchy on relations */
-  val relationHierarchyConstraint = ConstrainedClassifier.constraintOf[SemanticRelation] {
+  val relationHierarchyConstraint = ConstrainedClassifier.constraint[SemanticRelation] {
     rel: SemanticRelation =>
 
       val oneDirection = relationHierarchy.map({
@@ -52,7 +52,7 @@ object REConstraints {
           }).reduce[FirstOrderConstraint](_ and _)
       }).reduce[FirstOrderConstraint](_ and _)
 
-      oneDirection &&& secondDirection
+      oneDirection and secondDirection
   }
 
   private val relationToFirstEntityMapping: Map[String, (List[String], List[String])] = Map(
@@ -69,7 +69,7 @@ object REConstraints {
     ("m2-PER-SOC-m1", (List("PER"), List("PER")))
   )
 
-  val entityTypeArgumentConstraint = ConstrainedClassifier.constraintOf[SemanticRelation] {
+  val entityTypeArgumentConstraint = ConstrainedClassifier.constraint[SemanticRelation] {
     rel: SemanticRelation =>
       relationToFirstEntityMapping.map({
         case (coarseLabel, (firstEntityLabels, secondEntityLabels)) =>
