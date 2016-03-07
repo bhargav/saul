@@ -15,13 +15,14 @@ import scala.io.Source
   */
 object RelationExtractionApp {
 
+  /** Helper class for evaluation across experiments */
   case class EvaluationResult(classifierName: String, foldIndex: Int, goldCount: Int, predictedCount: Int, correctCount: Int) {
     def getPrecision = correctCount.toDouble / predictedCount
     def getRecall = correctCount.toDouble / goldCount
     def getF1: Double = {
       val recall = getRecall
       val precision = getPrecision
-      2.0 * recall * precision / (precision + recall)
+      if (precision + recall == 0) 0 else 2.0 * recall * precision / (precision + recall)
     }
 
     override def toString: String = {
@@ -36,10 +37,10 @@ object RelationExtractionApp {
 
   /** Main method */
   def main(args: Array[String]): Unit = {
-    val experimentType = REExperimentType.values.find(_.toString == args.headOption.getOrElse()).getOrElse(REExperimentType.RunRelationCVWithBrownFeatures)
-
-    if (experimentType == REExperimentType.RunRelationCVWithBrownFeatures)
-      REClassifiers.useRelationBrownFeatures = true
+    val experimentType = REExperimentType
+      .values
+      .find(_.toString == args.headOption.getOrElse())
+      .getOrElse(REExperimentType.RunMentionCV)
 
     val docs = loadDataFromCache.toIterable
     docs.foreach(preProcessDocument)
@@ -49,52 +50,11 @@ object RelationExtractionApp {
 
     val numFolds = 5
 
-    def setupDataModelForFold(fold: Int) =
-      {
-        val groupedDocs = docs.zipWithIndex.groupBy({ case (doc, index) => index % numFolds == fold })
-        val testDocs = groupedDocs(true).map(_._1)
-        val trainDocs = groupedDocs(false).map(_._1)
-
-        REDataModel.clearInstances
-        REDataModel.documents.populate(trainDocs)
-        REDataModel.documents.populate(testDocs, train = false)
-
-        (trainDocs, testDocs)
-      }
-
     val experimentResult: List[EvaluationResult] = {
-      if (experimentType == REExperimentType.RunMentionCV) {
-        (0 until numFolds).flatMap({ fold =>
-          setupDataModelForFold(fold)
-
-          println(s"Total number of mentions = ${REDataModel.tokens.getTrainingInstances.size}" +
-            s" / ${REDataModel.tokens.getTestingInstances.size}")
-
-          REClassifiers.mentionTypeFineClassifier.forget()
-          REClassifiers.mentionTypeCoarseClassifier.forget()
-
-          REClassifiers.mentionTypeFineClassifier.learn(5)
-          REClassifiers.mentionTypeCoarseClassifier.learn(5)
-
-          //        addMentionPredictionView(REDataModel.documents.getTestingInstances, Constants.PRED_MENTION_VIEW)
-
-          evaluateMentionTypeClassifier(fold)
-        }).toList
-      } else {
-        (0 until numFolds).flatMap({ fold =>
-          setupDataModelForFold(fold)
-
-          println(s"Total number of relations = ${REDataModel.pairedRelations.getTrainingInstances.size}" +
-            s" / ${REDataModel.pairedRelations.getTestingInstances.size}")
-
-          REClassifiers.relationTypeFineClassifier.forget()
-          REClassifiers.relationTypeCoarseClassifier.forget()
-
-          REClassifiers.relationTypeFineClassifier.learn(5)
-          REClassifiers.relationTypeCoarseClassifier.learn(5)
-
-          evaluationRelationTypeClassifier(fold)
-        }).toList
+      experimentType match {
+        case REExperimentType.RunMentionCV => runMentionClassifierCVExperiment(docs, numFolds)
+        case REExperimentType.RunRelationCV => runRelationClassifierCVExperiment(docs, numFolds, useBrownFeatures = false)
+        case REExperimentType.RunRelationCVWithBrownFeatures => runRelationClassifierCVExperiment(docs, numFolds, useBrownFeatures = true)
       }
     }
 
@@ -108,21 +68,52 @@ object RelationExtractionApp {
     })
   }
 
-  def addMentionPredictionView(testDocs: Iterable[TextAnnotation], predictionViewName: String): Unit = {
-    val softMax = new Softmax()
+  def runMentionClassifierCVExperiment(docs: Iterable[TextAnnotation], numFolds: Int) = {
+    (0 until numFolds).flatMap({ fold =>
+      setupDataModelForFold(docs, fold, numFolds)
 
-    testDocs.foreach({ doc =>
-      // Predictions are added as a new view to the TA
-      val typedView = new SpanLabelView(predictionViewName, "predict", doc, 1.0, true)
+      println(s"Total number of mentions = ${REDataModel.tokens.getTrainingInstances.size}" +
+        s" / ${REDataModel.tokens.getTestingInstances.size}")
 
-      doc.getView(Constants.CANDIDATE_MENTION_VIEW).getConstituents.foreach({ c: Constituent =>
-        val label = REClassifiers.mentionTypeFineClassifier(c)
-        val scoreSet = softMax.normalize(REClassifiers.mentionTypeFineClassifier.classifier.scores(c))
-        typedView.addSpanLabel(c.getStartSpan, c.getEndSpan, label, scoreSet.get(label))
-      })
+      REClassifiers.mentionTypeFineClassifier.forget()
+      REClassifiers.mentionTypeCoarseClassifier.forget()
 
-      doc.addView(predictionViewName, typedView)
-    })
+      REClassifiers.mentionTypeFineClassifier.learn(5)
+      REClassifiers.mentionTypeCoarseClassifier.learn(5)
+
+      //        addMentionPredictionView(REDataModel.documents.getTestingInstances, Constants.PRED_MENTION_VIEW)
+
+      evaluateMentionTypeClassifier(fold)
+    }).toList
+  }
+
+  def runRelationClassifierCVExperiment(docs: Iterable[TextAnnotation], numFolds: Int, useBrownFeatures: Boolean) = {
+    REClassifiers.useRelationBrownFeatures = useBrownFeatures
+
+    (0 until numFolds).flatMap({ fold =>
+      setupDataModelForFold(docs, fold, numFolds)
+
+      println(s"Total number of relations = ${REDataModel.pairedRelations.getTrainingInstances.size}" +
+        s" / ${REDataModel.pairedRelations.getTestingInstances.size}")
+
+      REClassifiers.relationTypeFineClassifier.forget()
+      REClassifiers.relationTypeCoarseClassifier.forget()
+
+      REClassifiers.relationTypeFineClassifier.learn(5)
+      REClassifiers.relationTypeCoarseClassifier.learn(5)
+
+      evaluationRelationTypeClassifier(fold)
+    }).toList
+  }
+
+  private def setupDataModelForFold(docs: Iterable[TextAnnotation], fold: Int, numFolds: Int): Unit = {
+    val groupedDocs = docs.zipWithIndex.groupBy({ case (doc, index) => index % numFolds == fold })
+    val testDocs = groupedDocs(true).map(_._1)
+    val trainDocs = groupedDocs(false).map(_._1)
+
+    REDataModel.clearInstances
+    REDataModel.documents.populate(trainDocs)
+    REDataModel.documents.populate(testDocs, train = false)
   }
 
   def evaluateMentionTypeClassifier(fold: Int): List[EvaluationResult] = {
@@ -199,6 +190,23 @@ object RelationExtractionApp {
     document.addView(Constants.TYPED_CANDIDATE_MENTION_VIEW, typedView)
   }
 
+  def addMentionPredictionView(testDocs: Iterable[TextAnnotation], predictionViewName: String): Unit = {
+    val softMax = new Softmax()
+
+    testDocs.foreach({ doc =>
+      // Predictions are added as a new view to the TA
+      val typedView = new SpanLabelView(predictionViewName, "predict", doc, 1.0, true)
+
+      doc.getView(Constants.CANDIDATE_MENTION_VIEW).getConstituents.foreach({ c: Constituent =>
+        val label = REClassifiers.mentionTypeFineClassifier(c)
+        val scoreSet = softMax.normalize(REClassifiers.mentionTypeFineClassifier.classifier.scores(c))
+        typedView.addSpanLabel(c.getStartSpan, c.getEndSpan, label, scoreSet.get(label))
+      })
+
+      doc.addView(predictionViewName, typedView)
+    })
+  }
+
   /** Method to load ACE Documents
     * Attempts to fetch the serialized TA instances directly and updates cache if a particular
     * document is not present in the cache directory.
@@ -206,7 +214,7 @@ object RelationExtractionApp {
     * @return List of TextAnnotation items each of them representing a single document
     */
   def loadDataFromCache: Iterator[TextAnnotation] = {
-    val masterFileList = ResourceManager.getProjectRoot + "/../data/ace2004/allfiles"
+    val masterFileList = ResourceManager.getProjectRoot + "/../data/ace2004/allfiles.txt"
     val cacheBasePath = ResourceManager.getProjectRoot + "/../data_cache/"
 
     Source.fromFile(masterFileList).getLines().map(fileName => {
