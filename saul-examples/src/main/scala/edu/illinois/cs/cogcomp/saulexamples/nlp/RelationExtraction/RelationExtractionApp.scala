@@ -6,6 +6,7 @@ import edu.illinois.cs.cogcomp.core.datastructures.textannotation.{ Constituent,
 import edu.illinois.cs.cogcomp.illinoisRE.common.{ Document, ResourceManager, Constants }
 import edu.illinois.cs.cogcomp.illinoisRE.data.{ SemanticRelation, DataLoader }
 import edu.illinois.cs.cogcomp.illinoisRE.mention.{ MentionTyper, MentionDetector }
+import edu.illinois.cs.cogcomp.lbjava.classify.TestDiscrete
 import edu.illinois.cs.cogcomp.lbjava.learn.Softmax
 
 import scala.collection.JavaConversions._
@@ -16,17 +17,10 @@ import scala.io.Source
 object RelationExtractionApp {
 
   /** Helper class for evaluation across experiments */
-  case class EvaluationResult(classifierName: String, foldIndex: Int, goldCount: Int, predictedCount: Int, correctCount: Int) {
-    def getPrecision = correctCount.toDouble / predictedCount
-    def getRecall = correctCount.toDouble / goldCount
-    def getF1: Double = {
-      val recall = getRecall
-      val precision = getPrecision
-      if (precision + recall == 0) 0 else 2.0 * recall * precision / (precision + recall)
-    }
-
+  case class EvaluationResult(classifierName: String, foldIndex: Int, performance: TestDiscrete) {
     override def toString: String = {
-      s"Classifier: $classifierName Fold $foldIndex - Precision: $getPrecision // Recall: $getRecall // F1: $getF1"
+      val overallStats = performance.getOverallStats
+      s"Classifier: $classifierName Fold $foldIndex - Precision: ${overallStats(0)} // Recall: ${overallStats(1)} // F1: ${overallStats(2)}"
     }
   }
 
@@ -62,9 +56,7 @@ object RelationExtractionApp {
     experimentResult.groupBy(_.classifierName).foreach({
       case (clfName, evalList) =>
         evalList.foreach(println)
-        println(s"Average Precision: : ${evalList.map(_.getPrecision).sum * 100 / evalList.length}")
-        println(s"Average Recall: : ${evalList.map(_.getRecall).sum * 100 / evalList.length}")
-        println(s"Average F1: : ${evalList.map(_.getF1).sum * 100 / evalList.length}")
+        evalList.foreach(_.performance.printPerformance(System.out))
     })
   }
 
@@ -146,20 +138,16 @@ object RelationExtractionApp {
     goldLabeler: T => String,
     exclude: List[String] = List.empty
   ): EvaluationResult = {
-    // TODO@bhargav - Replace with TestDiscrete or some such
-    val (gold, predicted, correct) = testInstances.foldLeft((0, 0, 0))({
-      case ((gold, predicted, correct), rel) =>
-        val goldLabel = goldLabeler(rel)
-        val predictedLabel = predictedLabeler(rel)
+    val performance = new TestDiscrete()
+    exclude.filterNot(_.isEmpty).foreach(performance.addNull)
 
-        val goldInc = if (exclude.exists(_.equals(goldLabel))) 0 else 1
-        val predictedInc = if (exclude.exists(_.equals(predictedLabel))) 0 else 1
-        val correctInc = if (predictedInc == 1 && goldLabel.equals(predictedLabel)) 1 else 0
-
-        (gold + goldInc, predicted + predictedInc, correct + correctInc)
+    testInstances.foreach({ rel =>
+      val goldLabel = goldLabeler(rel)
+      val predictedLabel = predictedLabeler(rel)
+      performance.reportPrediction(predictedLabel, goldLabel)
     })
 
-    EvaluationResult(clfName, fold, gold, predicted, correct)
+    EvaluationResult(clfName, fold, performance)
   }
 
   /** Add candidate mentions and typed-candidate mentions to the ACE Document */
@@ -218,7 +206,8 @@ object RelationExtractionApp {
     val cacheBasePath = ResourceManager.getProjectRoot + "/../data_cache/"
 
     Source.fromFile(masterFileList).getLines().map(fileName => {
-      val outputFile = new File(cacheBasePath + fileName + ".ta")
+      val cacheName = fileName.substring(fileName.lastIndexOf("/") + 1)
+      val outputFile = new File(cacheBasePath + cacheName + ".ta")
       if (outputFile.exists()) {
         val e = new ObjectInputStream(new FileInputStream(outputFile.getPath))
         val ta = e.readObject.asInstanceOf[TextAnnotation]
