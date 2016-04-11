@@ -4,7 +4,7 @@ import java.io._
 import java.nio.file._
 
 import edu.illinois.cs.cogcomp.nlp.tokenizer.IllinoisTokenizer
-import edu.illinois.cs.cogcomp.nlp.utility.CcgTextAnnotationBuilder
+import edu.illinois.cs.cogcomp.nlp.utility.TokenizerTextAnnotationBuilder
 import edu.illinois.cs.cogcomp.reader.ace2005.annotationStructure.{ ACEDocument, ACEDocumentAnnotation }
 import edu.illinois.cs.cogcomp.reader.ace2005.documentReader.{ AceFileProcessor, ReadACEDocuments, ReadACEAnnotation }
 import edu.illinois.cs.cogcomp.reader.commondatastructure.XMLException
@@ -111,7 +111,7 @@ object AnnotateACE extends App {
   val docDirInput = baseDir + "English/"
   val docDirOuput = baseDir + "cache/"
   new File(docDirOuput).mkdirs
-  val taBuilder = new CcgTextAnnotationBuilder(new IllinoisTokenizer())
+  val taBuilder = new TokenizerTextAnnotationBuilder(new IllinoisTokenizer())
   val functor = new AceFileProcessor(taBuilder)
   annotateAllDocument(functor, docDirInput, docDirOuput, new File(dtdFile))
 }
