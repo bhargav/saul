@@ -10,7 +10,6 @@ import edu.illinois.cs.cogcomp.saul.constraint.ConstraintTypeConversion._
 object REConstrainedClassifiers {
 
   object relationHierarchyConstrainedClassifier extends ConstrainedClassifier[SemanticRelation, SemanticRelation](
-    REDataModel,
     relationTypeFineClassifier
   ) {
     def subjectTo = REConstraints.relationHierarchyConstraint

@@ -100,25 +100,25 @@ object REClassifiers {
     SinglePrepStringInBetweenbc10Feature, FirstPrepStringInBetweenbc10Feature, LastPrepStringInBetweenbc10Feature
   )
 
-  object mentionTypeFineClassifier extends Learnable[Constituent](REDataModel) {
+  object mentionTypeFineClassifier extends Learnable[Constituent](tokens) {
     def label = mentionFineLabel
     override def feature = using(mentionFeatures)
     override lazy val classifier = new SupportVectorMachine(1, 0.1, -1, "L2LOSS_SVM_DUAL")
   }
 
-  object mentionTypeCoarseClassifier extends Learnable[Constituent](REDataModel) {
+  object mentionTypeCoarseClassifier extends Learnable[Constituent](tokens) {
     def label = mentionCoarseLabel
     override def feature = using(mentionFeatures)
     override lazy val classifier = new SupportVectorMachine(1, 0.1, -1, "L2LOSS_SVM_DUAL")
   }
 
-  object relationTypeFineClassifier extends Learnable[SemanticRelation](REDataModel) {
+  object relationTypeFineClassifier extends Learnable[SemanticRelation](pairedRelations) {
     def label = relationFineLabel
     override def feature = if (useRelationBrownFeatures) using(relationFeatures ::: relationBrownClusterFeatures) else using(relationFeatures)
     override lazy val classifier = new SupportVectorMachine(1, 0.1, -1, "L2LOSS_SVM_DUAL")
   }
 
-  object relationTypeCoarseClassifier extends Learnable[SemanticRelation](REDataModel) {
+  object relationTypeCoarseClassifier extends Learnable[SemanticRelation](pairedRelations) {
     override def label = relationCoarseLabel
     override def feature = if (useRelationBrownFeatures) using(relationFeatures ::: relationBrownClusterFeatures) else using(relationFeatures)
     override lazy val classifier = new SupportVectorMachine(1, 0.1, -1, "L2LOSS_SVM_DUAL")
