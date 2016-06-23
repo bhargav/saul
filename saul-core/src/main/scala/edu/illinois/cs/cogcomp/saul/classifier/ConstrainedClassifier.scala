@@ -7,8 +7,9 @@ import edu.illinois.cs.cogcomp.saul.TestWithStorage
 import edu.illinois.cs.cogcomp.saul.classifier.infer.InferenceCondition
 import edu.illinois.cs.cogcomp.saul.constraint.LfsConstraint
 import edu.illinois.cs.cogcomp.saul.datamodel.edge.Edge
-import edu.illinois.cs.cogcomp.saul.lbjrelated.{ LBJLearnerEquivalent, LBJClassifierEquivalent }
-import edu.illinois.cs.cogcomp.saul.parser.LBJIteratorParserScala
+import edu.illinois.cs.cogcomp.saul.lbjrelated.{ LBJClassifierEquivalent, LBJLearnerEquivalent }
+import edu.illinois.cs.cogcomp.saul.parser.IterableToLBJavaParser
+import edu.illinois.cs.cogcomp.saul.util.Logging
 
 import scala.reflect.ClassTag
 
@@ -22,7 +23,7 @@ abstract class ConstrainedClassifier[T <: AnyRef, HEAD <: AnyRef](val onClassifi
   implicit
   val tType: ClassTag[T],
   implicit val headType: ClassTag[HEAD]
-) extends LBJClassifierEquivalent {
+) extends LBJClassifierEquivalent with Logging {
 
   type LEFT = T
   type RIGHT = HEAD
@@ -47,8 +48,6 @@ abstract class ConstrainedClassifier[T <: AnyRef, HEAD <: AnyRef](val onClassifi
     */
   def filter(t: T, head: HEAD): Boolean = true
 
-  val logger = false
-
   /** The `pathToHead` returns only one object of type HEAD, if there are many of them i.e. `Iterable[HEAD]` then it
     * simply returns the `head` of the `Iterable`
     */
@@ -64,16 +63,13 @@ abstract class ConstrainedClassifier[T <: AnyRef, HEAD <: AnyRef](val onClassifi
       val l = pathToHead.get.forward.neighborsOf(x).toSet.toList
 
       if (l.isEmpty) {
-        if (logger)
-          println("Warning: Failed to find head")
+        logger.error("Warning: Failed to find head")
         None
       } else if (l.size != 1) {
-        if (logger)
-          println("Find too many heads")
+        logger.warn("Find too many heads")
         Some(l.head)
       } else {
-        if (logger)
-          println(s"Found head ${l.head} for child $x")
+        logger.info(s"Found head ${l.head} for child $x")
         Some(l.head)
       }
     }
@@ -86,8 +82,7 @@ abstract class ConstrainedClassifier[T <: AnyRef, HEAD <: AnyRef](val onClassifi
       val l = pathToHead.get.backward.neighborsOf(head)
 
       if (l.isEmpty) {
-        if (logger)
-          println("Failed to find part")
+        logger.error("Failed to find part")
         Seq.empty[T]
       } else {
         l.filter(filter(_, head)).toSeq
@@ -102,8 +97,7 @@ abstract class ConstrainedClassifier[T <: AnyRef, HEAD <: AnyRef](val onClassifi
         var inference = InferenceManager.get(name, head)
         if (inference == null) {
           inference = infer(head)
-          if (logger)
-            println("Inference is NULL " + name)
+          logger.warn(s"Inference ${name} has not been cached; running inference . . . ")
           InferenceManager.put(name, inference)
         }
         inference.valueOf(cls, t)
@@ -135,7 +129,7 @@ abstract class ConstrainedClassifier[T <: AnyRef, HEAD <: AnyRef](val onClassifi
     *
     * @return List of (label, (f1, precision, recall))
     */
-  def test(): List[(String, (Double, Double, Double))] = {
+  def test(): Results = {
     val allHeads: Iterable[HEAD] = {
       if (pathToHead.isEmpty) {
         onClassifier match {
@@ -160,9 +154,9 @@ abstract class ConstrainedClassifier[T <: AnyRef, HEAD <: AnyRef](val onClassifi
     * @return List of (label, (f1,precision,recall))
     */
 
-  def test(testData: Iterable[T] = null, outFile: String = null, outputGranularity: Int = 0, exclude: String = ""): List[(String, (Double, Double, Double))] = {
+  def test(testData: Iterable[T] = null, outFile: String = null, outputGranularity: Int = 0, exclude: String = ""): Results = {
     println()
-    val testReader = new LBJIteratorParserScala[T](if (testData == null)
+    val testReader = new IterableToLBJavaParser[T](if (testData == null)
       onClassifier match {
       case clf: Learnable[T] => clf.node.getTestingInstances.asInstanceOf[Iterable[T]]
       case _ => println("ERROR: pathToHead is not provided and the onClassifier is not a Learnable!"); Nil
@@ -172,10 +166,14 @@ abstract class ConstrainedClassifier[T <: AnyRef, HEAD <: AnyRef](val onClassifi
     testReader.reset()
     val tester: TestDiscrete = new TestDiscrete()
     TestWithStorage.test(tester, classifier, onClassifier.getLabeler, testReader, outFile, outputGranularity, exclude)
-    val ret = tester.getLabels.map({
-      label => (label, (tester.getF1(label), tester.getPrecision(label), tester.getRecall(label)))
-    })
-    ret toList
+    val perLabelResults = tester.getLabels.map {
+      label =>
+        ResultPerLabel(label, tester.getF1(label), tester.getPrecision(label), tester.getRecall(label),
+          tester.getAllClasses, tester.getLabeled(label), tester.getPredicted(label), tester.getCorrect(label))
+    }
+    val overalResultArray = tester.getOverallStats()
+    val overalResult = OverallResult(overalResultArray(0), overalResultArray(1), overalResultArray(2))
+    Results(perLabelResults, ClassifierUtils.getAverageResults(perLabelResults), overalResult)
   }
 }
 
