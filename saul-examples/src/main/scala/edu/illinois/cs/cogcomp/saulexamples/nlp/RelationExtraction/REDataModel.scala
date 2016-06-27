@@ -3,7 +3,7 @@ package edu.illinois.cs.cogcomp.saulexamples.nlp.RelationExtraction
 import edu.illinois.cs.cogcomp.core.datastructures.textannotation.{ Sentence, TextAnnotation, Constituent }
 import edu.illinois.cs.cogcomp.illinoisRE.data.SemanticRelation
 import edu.illinois.cs.cogcomp.saul.datamodel.DataModel
-import edu.illinois.cs.cogcomp.illinoisRE.mention.{ MentionTyper, MentionTypeFeatures }
+import edu.illinois.cs.cogcomp.illinoisRE.mention.MentionTypeFeatures
 import edu.illinois.cs.cogcomp.illinoisRE.relation.RelationFeatures
 import edu.illinois.cs.cogcomp.saulexamples.nlp.CommonSensors
 
@@ -14,8 +14,8 @@ import scala.collection.JavaConversions._
 object REDataModel extends DataModel {
 
   // Some constants used by the DataModel internally.
-  private val NONE_MENTION = MentionTyper.NONE_MENTION
-  private val EXIST_MENTION = "exist"
+  val NONE_MENTION = "NULL"
+  val EXIST_MENTION = "exist"
 
   val documents = node[TextAnnotation]
   val sentences = node[Sentence]
@@ -24,12 +24,12 @@ object REDataModel extends DataModel {
 
   val documentToSentences = edge(documents, sentences)
   val sentenceToTokens = edge(sentences, tokens)
-//  val sentenceToRelations = edge(sentences, pairedRelations)
+  //  val sentenceToRelations = edge(sentences, pairedRelations)
 
   // Sensors for populating the data model graph
   documentToSentences.addSensor(CommonSensors.getSentences _)
   sentenceToTokens.addSensor(RESensors.sentenceToTokens _)
-//  sentenceToRelations.addSensor(RESensors.sentenceToRelations _)
+  //  sentenceToRelations.addSensor(RESensors.sentenceToRelations _)
 
   // Helper functions to handle NULL returned by Java functions below
   // todo@bhargav - Check if implicit would work here

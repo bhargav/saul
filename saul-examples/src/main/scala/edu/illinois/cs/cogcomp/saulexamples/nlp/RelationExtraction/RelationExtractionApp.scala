@@ -2,16 +2,19 @@ package edu.illinois.cs.cogcomp.saulexamples.nlp.RelationExtraction
 
 import java.io._
 
+import com.google.common.io.FileBackedOutputStream
 import edu.illinois.cs.cogcomp.core.datastructures.ViewNames
 import edu.illinois.cs.cogcomp.core.datastructures.textannotation.{ Constituent, TextAnnotation, SpanLabelView }
 import edu.illinois.cs.cogcomp.curator.CuratorFactory
 import edu.illinois.cs.cogcomp.illinoisRE.common.{ Document, Constants }
 import edu.illinois.cs.cogcomp.illinoisRE.data.SemanticRelation
-import edu.illinois.cs.cogcomp.illinoisRE.mention.{ MentionTyper, MentionDetector }
+import edu.illinois.cs.cogcomp.illinoisRE.mention.MentionDetector
 import edu.illinois.cs.cogcomp.nlp.corpusreaders.ACEReader
 import edu.illinois.cs.cogcomp.lbjava.classify.TestDiscrete
 import edu.illinois.cs.cogcomp.lbjava.learn.Softmax
+import edu.illinois.cs.cogcomp.saul.classifier.ClassifierUtils
 import edu.illinois.cs.cogcomp.saul.util.Logging
+import org.joda.time.DateTime
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable
@@ -56,11 +59,13 @@ object RelationExtractionApp extends Logging {
       }
     }
 
+    val outputStream = new PrintStream(new FileOutputStream(s"results_${DateTime.now().toString("MM-DD-YY-HH-mm")}.txt"))
+
     // Evaluation
     experimentResult.groupBy(_.classifierName).foreach({
       case (clfName, evalList) =>
-        evalList.foreach(println)
-        evalList.foreach(_.performance.printPerformance(System.out))
+        evalList.foreach(outputStream.println(_))
+        evalList.foreach(_.performance.printPerformance(outputStream))
     })
   }
 
@@ -71,11 +76,10 @@ object RelationExtractionApp extends Logging {
       println(s"Total number of mentions = ${REDataModel.tokens.getTrainingInstances.size}" +
         s" / ${REDataModel.tokens.getTestingInstances.size}")
 
-      REClassifiers.mentionTypeFineClassifier.forget()
-      REClassifiers.mentionTypeCoarseClassifier.forget()
+      val classifiers = List(REClassifiers.mentionTypeFineClassifier, REClassifiers.mentionTypeCoarseClassifier)
 
-      REClassifiers.mentionTypeFineClassifier.learn(5)
-      REClassifiers.mentionTypeCoarseClassifier.learn(5)
+      classifiers.foreach(clf => clf.forget())
+      ClassifierUtils.TrainClassifiers(5, classifiers)
 
       //        addMentionPredictionView(REDataModel.documents.getTestingInstances, Constants.PRED_MENTION_VIEW)
 
@@ -92,11 +96,10 @@ object RelationExtractionApp extends Logging {
       println(s"Total number of relations = ${REDataModel.pairedRelations.getTrainingInstances.size}" +
         s" / ${REDataModel.pairedRelations.getTestingInstances.size}")
 
-      REClassifiers.relationTypeFineClassifier.forget()
-      REClassifiers.relationTypeCoarseClassifier.forget()
+      val classifiers = List(REClassifiers.relationTypeFineClassifier, REClassifiers.relationTypeCoarseClassifier)
 
-      REClassifiers.relationTypeFineClassifier.learn(5)
-      REClassifiers.relationTypeCoarseClassifier.learn(5)
+      classifiers.foreach(clf => clf.forget())
+      ClassifierUtils.TrainClassifiers(5, classifiers)
 
       evaluationRelationTypeClassifier(fold)
     }).toList
@@ -114,7 +117,7 @@ object RelationExtractionApp extends Logging {
 
   def evaluateMentionTypeClassifier(fold: Int): List[EvaluationResult] = {
     val testInstances = REDataModel.tokens.getTestingInstances
-    val excludeList = MentionTyper.NONE_MENTION :: Nil
+    val excludeList = REDataModel.NONE_MENTION :: Nil
 
     import REClassifiers._
 
@@ -181,7 +184,7 @@ object RelationExtractionApp extends Logging {
 
     mentionView.getConstituents.foreach({ c: Constituent =>
       val goldOverlap = goldTypedView.getConstituents.filter(tc => c.getStartSpan == tc.getStartSpan && c.getEndSpan == tc.getEndSpan)
-      val label = if (goldOverlap.isEmpty) MentionTyper.NONE_MENTION else goldOverlap.head.getLabel
+      val label = if (goldOverlap.isEmpty) REDataModel.NONE_MENTION else goldOverlap.head.getLabel
       typedView.addSpanLabel(c.getStartSpan, c.getEndSpan, label, 1.0)
 
       if (goldOverlap.nonEmpty) {
