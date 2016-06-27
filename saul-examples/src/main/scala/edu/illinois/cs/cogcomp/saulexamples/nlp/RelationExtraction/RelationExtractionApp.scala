@@ -158,11 +158,6 @@ object RelationExtractionApp extends Logging {
   def preProcessDocument(document: TextAnnotation): Unit = {
     val tempDoc: Document = new Document(document)
 
-    val requiredView = List(ViewNames.POS, ViewNames.SHALLOW_PARSE, ViewNames.NER_CONLL, ViewNames.PARSE_STANFORD)
-
-    val annotatorService = CuratorFactory.buildCuratorClient
-    requiredView.foreach(viewName => annotatorService.addView(document, viewName))
-
     //      Method adds candidates to CANDIDATE_MENTION_VIEW View to the TextAnnotation instance
     //      Also adds a CHUNK_PARSE and a SHALLOW_PARSE
     MentionDetector.labelDocMentionCandidates(tempDoc)
@@ -231,8 +226,48 @@ object RelationExtractionApp extends Logging {
     */
   def loadDataFromCache: Iterator[TextAnnotation] = {
     val datasetRootPath = "data/ace04/data/English"
-    val aceReader: Iterable[TextAnnotation] = new ACEReader(datasetRootPath, Array("nw"), true)
+    val sections = Array("nw")
+    val is2004Dataset = true
 
-    aceReader.iterator
+    val cacheFilePath = "data/ace04.index"
+    val cacheFile = new File(cacheFilePath)
+
+    val annotatorService = CuratorFactory.buildCuratorClient
+    val requiredViews = List(ViewNames.POS, ViewNames.SHALLOW_PARSE, ViewNames.NER_CONLL, ViewNames.PARSE_STANFORD)
+
+    val taList = {
+      if (cacheFile.exists()) {
+        try {
+          val e = new ObjectInputStream(new FileInputStream(cacheFile.getPath))
+          val taItems = e.readObject.asInstanceOf[List[TextAnnotation]]
+          e.close()
+
+          taItems
+        } catch {
+          case ex: Exception => logger.error("Failure while reading cache file!", ex); List.empty
+        }
+      } else {
+        val aceReader: Iterable[TextAnnotation] = new ACEReader(datasetRootPath, sections, is2004Dataset)
+        val items = aceReader.toList
+
+        items.foreach({ ta =>
+          // Add required views to the TextAnnotation
+          requiredViews.foreach(view => annotatorService.addView(ta, view))
+        })
+
+        try {
+          val f = new FileOutputStream(cacheFile)
+          val e = new ObjectOutputStream(f)
+          e.writeObject(items)
+          e.flush()
+        } catch {
+          case ex: Exception => logger.error("Error while writing cache file!", ex)
+        }
+
+        items
+      }
+    }
+
+    taList.toIterator
   }
 }
