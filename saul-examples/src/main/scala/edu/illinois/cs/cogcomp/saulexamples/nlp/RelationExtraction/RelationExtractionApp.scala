@@ -2,19 +2,23 @@ package edu.illinois.cs.cogcomp.saulexamples.nlp.RelationExtraction
 
 import java.io._
 
+import edu.illinois.cs.cogcomp.core.datastructures.ViewNames
 import edu.illinois.cs.cogcomp.core.datastructures.textannotation.{ Constituent, TextAnnotation, SpanLabelView }
-import edu.illinois.cs.cogcomp.illinoisRE.common.{ Document, ResourceManager, Constants }
-import edu.illinois.cs.cogcomp.illinoisRE.data.{ SemanticRelation, DataLoader }
+import edu.illinois.cs.cogcomp.curator.CuratorFactory
+import edu.illinois.cs.cogcomp.illinoisRE.common.{ Document, Constants }
+import edu.illinois.cs.cogcomp.illinoisRE.data.SemanticRelation
 import edu.illinois.cs.cogcomp.illinoisRE.mention.{ MentionTyper, MentionDetector }
+import edu.illinois.cs.cogcomp.nlp.corpusreaders.ACEReader
 import edu.illinois.cs.cogcomp.lbjava.classify.TestDiscrete
 import edu.illinois.cs.cogcomp.lbjava.learn.Softmax
+import edu.illinois.cs.cogcomp.saul.util.Logging
 
 import scala.collection.JavaConversions._
-import scala.io.Source
+import scala.collection.mutable
 
 /** Created by Bhargav Mangipudi on 1/28/16.
   */
-object RelationExtractionApp {
+object RelationExtractionApp extends Logging {
 
   /** Helper class for evaluation across experiments */
   case class EvaluationResult(classifierName: String, foldIndex: Int, performance: TestDiscrete) {
@@ -154,11 +158,16 @@ object RelationExtractionApp {
   def preProcessDocument(document: TextAnnotation): Unit = {
     val tempDoc: Document = new Document(document)
 
+    val requiredView = List(ViewNames.POS, ViewNames.SHALLOW_PARSE, ViewNames.NER_CONLL, ViewNames.PARSE_STANFORD)
+
+    val annotatorService = CuratorFactory.buildCuratorClient
+    requiredView.foreach(viewName => annotatorService.addView(document, viewName))
+
     //      Method adds candidates to CANDIDATE_MENTION_VIEW View to the TextAnnotation instance
     //      Also adds a CHUNK_PARSE and a SHALLOW_PARSE
     MentionDetector.labelDocMentionCandidates(tempDoc)
 
-    val goldTypedView = document.getView(Constants.GOLD_MENTION_VIEW)
+    val goldTypedView = document.getView(ViewNames.NER_ACE_FINE_HEAD)
     val mentionView = document.getView(Constants.CANDIDATE_MENTION_VIEW)
 
     val typedView: SpanLabelView = new SpanLabelView(
@@ -169,13 +178,32 @@ object RelationExtractionApp {
       true
     )
 
+    val allConstituents = new mutable.HashSet[Constituent]()
+    goldTypedView.getConstituents.foreach(c => allConstituents.add(c))
+
+    logger.info(s"Number of constituents = ${goldTypedView.getNumberOfConstituents}")
+    logger.info(s"Number of constituents in HashSet = ${allConstituents.size}")
+
     mentionView.getConstituents.foreach({ c: Constituent =>
       val goldOverlap = goldTypedView.getConstituents.filter(tc => c.getStartSpan == tc.getStartSpan && c.getEndSpan == tc.getEndSpan)
       val label = if (goldOverlap.isEmpty) MentionTyper.NONE_MENTION else goldOverlap.head.getLabel
       typedView.addSpanLabel(c.getStartSpan, c.getEndSpan, label, 1.0)
+
+      if (goldOverlap.nonEmpty) {
+        if (!allConstituents.contains(goldOverlap.head)) {
+          logger.warn("Multiple Gold entities present")
+        } else {
+          allConstituents.remove(goldOverlap.head)
+        }
+      }
     })
 
     document.addView(Constants.TYPED_CANDIDATE_MENTION_VIEW, typedView)
+
+    logger.info(s"Number of candidates generated = ${typedView.getNumberOfConstituents}")
+    if (allConstituents.nonEmpty) {
+      logger.warn(s"${allConstituents.size} entities not accounted for !!")
+    }
   }
 
   def addMentionPredictionView(testDocs: Iterable[TextAnnotation], predictionViewName: String): Unit = {
@@ -202,33 +230,9 @@ object RelationExtractionApp {
     * @return List of TextAnnotation items each of them representing a single document
     */
   def loadDataFromCache: Iterator[TextAnnotation] = {
-    val masterFileList = ResourceManager.getProjectRoot + "/../data/ace2004/allfiles.txt"
-    val cacheBasePath = ResourceManager.getProjectRoot + "/../data_cache/"
+    val datasetRootPath = "data/ace04/data/English"
+    val aceReader: Iterable[TextAnnotation] = new ACEReader(datasetRootPath, Array("nw"), true)
 
-    Source.fromFile(masterFileList).getLines().map(fileName => {
-      val cacheName = fileName.substring(fileName.lastIndexOf("/") + 1)
-      val outputFile = new File(cacheBasePath + cacheName + ".ta")
-      if (outputFile.exists()) {
-        val e = new ObjectInputStream(new FileInputStream(outputFile.getPath))
-        val ta = e.readObject.asInstanceOf[TextAnnotation]
-        e.close()
-
-        ta
-      } else {
-        val ta = DataLoader.getACEDocument(fileName).getTextAnnotation
-
-        try {
-          new File(cacheBasePath).mkdirs
-          val f = new FileOutputStream(outputFile)
-          val e = new ObjectOutputStream(f)
-          e.writeObject(ta)
-          e.flush()
-        } catch {
-          case ex: Exception => ex.printStackTrace(); outputFile.getAbsolutePath
-        }
-
-        ta
-      }
-    })
+    aceReader.iterator
   }
 }

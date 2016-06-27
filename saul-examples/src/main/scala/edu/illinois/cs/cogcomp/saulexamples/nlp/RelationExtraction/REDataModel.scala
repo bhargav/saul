@@ -24,12 +24,12 @@ object REDataModel extends DataModel {
 
   val documentToSentences = edge(documents, sentences)
   val sentenceToTokens = edge(sentences, tokens)
-  val sentenceToRelations = edge(sentences, pairedRelations)
+//  val sentenceToRelations = edge(sentences, pairedRelations)
 
   // Sensors for populating the data model graph
   documentToSentences.addSensor(CommonSensors.getSentences _)
   sentenceToTokens.addSensor(RESensors.sentenceToTokens _)
-  sentenceToRelations.addSensor(RESensors.sentenceToRelations _)
+//  sentenceToRelations.addSensor(RESensors.sentenceToRelations _)
 
   // Helper functions to handle NULL returned by Java functions below
   // todo@bhargav - Check if implicit would work here

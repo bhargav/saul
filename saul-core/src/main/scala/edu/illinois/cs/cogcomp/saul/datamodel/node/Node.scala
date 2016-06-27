@@ -101,10 +101,6 @@ class Node[T <: AnyRef](
 
   private def containsNT(nt: NT): Boolean = collection.contains(nt)
 
-  def containsUntyped(t: Any): Boolean = if (t.isInstanceOf[T]) {
-    contains(t.asInstanceOf[T])
-  } else false
-
   def addInstance(t: T, train: Boolean = true, populateEdge: Boolean = true) = {
     val nt = toNT(t)
     if (!containsNT(nt)) {

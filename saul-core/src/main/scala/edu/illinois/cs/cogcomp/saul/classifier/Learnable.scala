@@ -194,7 +194,6 @@ abstract class Learnable[T <: AnyRef](val node: Node[T], val parameters: Paramet
       learnWithDerivedInstances(iteration, node.derivedInstances.values)
     } else {
       learn(iteration, this.trainingInstances)
-      classifier.doneLearning()
     }
     isTraining = false
   }
