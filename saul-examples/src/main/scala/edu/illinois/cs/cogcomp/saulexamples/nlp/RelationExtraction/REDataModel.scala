@@ -6,16 +6,13 @@ import edu.illinois.cs.cogcomp.saul.datamodel.DataModel
 import edu.illinois.cs.cogcomp.illinoisRE.mention.MentionTypeFeatures
 import edu.illinois.cs.cogcomp.illinoisRE.relation.RelationFeatures
 import edu.illinois.cs.cogcomp.saulexamples.nlp.CommonSensors
+import edu.illinois.cs.cogcomp.saulexamples.nlp.RelationExtraction.REConstants.{ EXIST_MENTION, NONE_MENTION }
 
 import scala.collection.JavaConversions._
 
 /** Created by Bhargav Mangipudi on 1/28/16.
   */
 object REDataModel extends DataModel {
-
-  // Some constants used by the DataModel internally.
-  val NONE_MENTION = "NULL"
-  val EXIST_MENTION = "exist"
 
   val documents = node[TextAnnotation]
   val sentences = node[Sentence]
@@ -24,15 +21,13 @@ object REDataModel extends DataModel {
 
   val documentToSentences = edge(documents, sentences)
   val sentenceToTokens = edge(sentences, tokens)
-  //  val sentenceToRelations = edge(sentences, pairedRelations)
+  val sentenceToRelations = edge(sentences, pairedRelations)
 
   // Sensors for populating the data model graph
   documentToSentences.addSensor(CommonSensors.getSentences _)
   sentenceToTokens.addSensor(RESensors.sentenceToTokens _)
-  //  sentenceToRelations.addSensor(RESensors.sentenceToRelations _)
 
   // Helper functions to handle NULL returned by Java functions below
-  // todo@bhargav - Check if implicit would work here
   private def sanitizeFeature(f: String) = if (f != null) f else ""
   private def sanitizeFeature(f: Array[String]): List[String] = if (f != null) f.toList else List.empty[String]
 

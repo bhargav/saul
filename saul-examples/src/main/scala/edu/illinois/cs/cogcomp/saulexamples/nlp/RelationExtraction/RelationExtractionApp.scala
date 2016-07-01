@@ -2,11 +2,10 @@ package edu.illinois.cs.cogcomp.saulexamples.nlp.RelationExtraction
 
 import java.io._
 
-import com.google.common.io.FileBackedOutputStream
 import edu.illinois.cs.cogcomp.core.datastructures.ViewNames
 import edu.illinois.cs.cogcomp.core.datastructures.textannotation.{ Constituent, TextAnnotation, SpanLabelView }
 import edu.illinois.cs.cogcomp.curator.CuratorFactory
-import edu.illinois.cs.cogcomp.illinoisRE.common.{ Document, Constants }
+import edu.illinois.cs.cogcomp.illinoisRE.common.Document
 import edu.illinois.cs.cogcomp.illinoisRE.data.SemanticRelation
 import edu.illinois.cs.cogcomp.illinoisRE.mention.MentionDetector
 import edu.illinois.cs.cogcomp.nlp.corpusreaders.ACEReader
@@ -41,7 +40,7 @@ object RelationExtractionApp extends Logging {
     val experimentType = REExperimentType
       .values
       .find(_.toString == args.headOption.getOrElse())
-      .getOrElse(REExperimentType.RunMentionCV)
+      .getOrElse(REExperimentType.RunRelationCV)
 
     val docs = loadDataFromCache.toIterable
     docs.foreach(preProcessDocument)
@@ -113,11 +112,17 @@ object RelationExtractionApp extends Logging {
     REDataModel.clearInstances
     REDataModel.documents.populate(trainDocs)
     REDataModel.documents.populate(testDocs, train = false)
+
+    val trainRelations = trainDocs.flatMap(ta => RESensors.populateRelations(ta, REConstants.TYPED_CANDIDATE_MENTION_VIEW, ViewNames.RELATION_ACE_FINE_HEAD))
+    val testRelations = testDocs.flatMap(ta => RESensors.populateRelations(ta, REConstants.TYPED_CANDIDATE_MENTION_VIEW, ViewNames.RELATION_ACE_FINE_HEAD))
+
+    REDataModel.pairedRelations.populate(trainRelations)
+    REDataModel.pairedRelations.populate(testRelations, train = false)
   }
 
   def evaluateMentionTypeClassifier(fold: Int): List[EvaluationResult] = {
     val testInstances = REDataModel.tokens.getTestingInstances
-    val excludeList = REDataModel.NONE_MENTION :: Nil
+    val excludeList = REConstants.NONE_MENTION :: Nil
 
     import REClassifiers._
 
@@ -127,14 +132,14 @@ object RelationExtractionApp extends Logging {
 
   def evaluationRelationTypeClassifier(fold: Int): List[EvaluationResult] = {
     val testInstances = REDataModel.pairedRelations.getTestingInstances
-    val excludeList = Constants.NO_RELATION :: Nil
+    val excludeList = REConstants.NO_RELATION :: Nil
 
     import REClassifiers._
     import REConstrainedClassifiers._
 
     evaluate[SemanticRelation](testInstances, "Relation Fine", fold, relationTypeFineClassifier(_), _.getFineLabel, excludeList) ::
-      evaluate[SemanticRelation](testInstances, "Relation Coarse", fold, relationTypeCoarseClassifier(_), _.getCoarseLabel, excludeList) ::
-      evaluate[SemanticRelation](testInstances, "Relation Hierarchy Constraint", fold, relationHierarchyConstrainedClassifier.classifier.discreteValue, _.getFineLabel, excludeList) :: Nil
+      evaluate[SemanticRelation](testInstances, "Relation Coarse", fold, relationTypeCoarseClassifier(_), _.getCoarseLabel, excludeList) :: Nil
+    //      evaluate[SemanticRelation](testInstances, "Relation Hierarchy Constraint", fold, relationHierarchyConstrainedClassifier.classifier.discreteValue, _.getFineLabel, excludeList) :: Nil
   }
 
   private def evaluate[T](
@@ -166,10 +171,10 @@ object RelationExtractionApp extends Logging {
     MentionDetector.labelDocMentionCandidates(tempDoc)
 
     val goldTypedView = document.getView(ViewNames.NER_ACE_FINE_HEAD)
-    val mentionView = document.getView(Constants.CANDIDATE_MENTION_VIEW)
+    val mentionView = document.getView(REConstants.CANDIDATE_MENTION_VIEW)
 
     val typedView: SpanLabelView = new SpanLabelView(
-      Constants.TYPED_CANDIDATE_MENTION_VIEW,
+      REConstants.TYPED_CANDIDATE_MENTION_VIEW,
       "alignFromGold",
       document,
       1.0,
@@ -184,11 +189,20 @@ object RelationExtractionApp extends Logging {
 
     mentionView.getConstituents.foreach({ c: Constituent =>
       val goldOverlap = goldTypedView.getConstituents.filter(tc => c.getStartSpan == tc.getStartSpan && c.getEndSpan == tc.getEndSpan)
-      val label = if (goldOverlap.isEmpty) REDataModel.NONE_MENTION else goldOverlap.head.getLabel
+      val label = if (goldOverlap.isEmpty) REConstants.NONE_MENTION else goldOverlap.head.getLabel
+      val goldConstituent = goldOverlap.headOption
+
+      // Clone attributes as well if it is a valid label
+      goldConstituent.map(_.getAttributeKeys)
+        .foreach(_.foreach({
+          case key: String =>
+            c.addAttribute(key, goldConstituent.get.getAttribute(key))
+        }))
+
       typedView.addSpanLabel(c.getStartSpan, c.getEndSpan, label, 1.0)
 
       if (goldOverlap.nonEmpty) {
-        if (!allConstituents.contains(goldOverlap.head)) {
+        if (!allConstituents.contains(goldConstituent.get)) {
           logger.warn("Multiple Gold entities present")
         } else {
           allConstituents.remove(goldOverlap.head)
@@ -196,7 +210,7 @@ object RelationExtractionApp extends Logging {
       }
     })
 
-    document.addView(Constants.TYPED_CANDIDATE_MENTION_VIEW, typedView)
+    document.addView(REConstants.TYPED_CANDIDATE_MENTION_VIEW, typedView)
 
     logger.info(s"Number of candidates generated = ${typedView.getNumberOfConstituents}")
     if (allConstituents.nonEmpty) {
@@ -211,7 +225,7 @@ object RelationExtractionApp extends Logging {
       // Predictions are added as a new view to the TA
       val typedView = new SpanLabelView(predictionViewName, "predict", doc, 1.0, true)
 
-      doc.getView(Constants.CANDIDATE_MENTION_VIEW).getConstituents.foreach({ c: Constituent =>
+      doc.getView(REConstants.CANDIDATE_MENTION_VIEW).getConstituents.foreach({ c: Constituent =>
         val label = REClassifiers.mentionTypeFineClassifier(c)
         val scoreSet = softMax.normalize(REClassifiers.mentionTypeFineClassifier.classifier.scores(c))
         typedView.addSpanLabel(c.getStartSpan, c.getEndSpan, label, scoreSet.get(label))
@@ -236,7 +250,13 @@ object RelationExtractionApp extends Logging {
     val cacheFile = new File(cacheFilePath)
 
     val annotatorService = CuratorFactory.buildCuratorClient
-    val requiredViews = List(ViewNames.POS, ViewNames.SHALLOW_PARSE, ViewNames.NER_CONLL, ViewNames.PARSE_STANFORD)
+    val requiredViews = List(
+      ViewNames.POS,
+      ViewNames.SHALLOW_PARSE,
+      ViewNames.NER_CONLL,
+      ViewNames.PARSE_STANFORD,
+      ViewNames.DEPENDENCY_STANFORD
+    )
 
     val taList = {
       if (cacheFile.exists()) {
@@ -251,12 +271,15 @@ object RelationExtractionApp extends Logging {
         }
       } else {
         val aceReader: Iterable[TextAnnotation] = new ACEReader(datasetRootPath, sections, is2004Dataset)
-        val items = aceReader.toList
-
-        items.foreach({ ta =>
-          // Add required views to the TextAnnotation
-          requiredViews.foreach(view => annotatorService.addView(ta, view))
-        })
+        val items = aceReader.flatMap({ ta =>
+          try {
+            // Add required views to the TextAnnotation
+            requiredViews.foreach(view => annotatorService.addView(ta, view))
+            Option(ta)
+          } catch {
+            case e: Exception => logger.error("Annotator error!", e); None
+          }
+        }).toList
 
         try {
           val f = new FileOutputStream(cacheFile)
@@ -271,6 +294,6 @@ object RelationExtractionApp extends Logging {
       }
     }
 
-    taList.toIterator
+    taList.take(5).toIterator
   }
 }
