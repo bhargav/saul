@@ -1,9 +1,9 @@
 package edu.illinois.cs.cogcomp.saulexamples.nlp.RelationExtraction
 
-import java.util.{List => JList, Map => JMap, HashMap => JHashMap}
+import java.util.{ List => JList, Map => JMap, HashMap => JHashMap }
 
 import edu.illinois.cs.cogcomp.core.datastructures.textannotation._
-import edu.illinois.cs.cogcomp.illinoisRE.data.{Mention, SemanticRelation}
+import edu.illinois.cs.cogcomp.illinoisRE.data.{ Mention, SemanticRelation }
 import edu.illinois.cs.cogcomp.illinoisRE.mention.MentionUtil
 import edu.illinois.cs.cogcomp.illinoisRE.relation.RelationExtractor
 import edu.illinois.cs.cogcomp.nlp.corpusreaders.ACEReader
@@ -36,8 +36,7 @@ object RESensors extends Logging {
     formRelationTraningExamples(sentenceMentions, goldRelations)
   }
 
-  /**
-    * Converts constituents into [[Mention]] instances
+  /** Converts constituents into [[Mention]] instances
     *
     * @param constituentList List of constituents (Entity Mentions)
     * @param discardNullMentions Decide if we need to discard NULL labelled entities
@@ -47,7 +46,7 @@ object RESensors extends Logging {
     val consList = if (discardNullMentions) constituentList.filterNot(_.getLabel.equalsIgnoreCase("NULL")) else constituentList
 
     consList.map({ cons: Constituent =>
-      val id = s"${ cons.getStartSpan }-${ cons.getEndSpan }"
+      val id = s"${cons.getStartSpan}-${cons.getEndSpan}"
       val mention = new Mention(id, cons)
 
       // For ACEReader, SubType is an optional parameter.
@@ -63,8 +62,7 @@ object RESensors extends Logging {
     })
   }
 
-  /**
-    * Gets Gold Relations from the given [[TextAnnotation]] instance.
+  /** Gets Gold Relations from the given [[TextAnnotation]] instance.
     *
     * @param document [[TextAnnotation]] document instance
     * @param mentionViewName View Name for Mentions
@@ -76,10 +74,13 @@ object RESensors extends Logging {
     val relationView: PredicateArgumentView = document.getView(goldViewName).asInstanceOf[PredicateArgumentView]
 
     relationView.getRelations.flatMap({ relation: Relation =>
-      val m1 = Option(mentionView.getConstituentsCovering(relation.getSource))
-      val m2 = Option(mentionView.getConstituentsCovering(relation.getTarget))
+      val predicateForSource = Queries.sameSpanAsConstituent(relation.getSource)
+      val predicateForTarget = Queries.sameSpanAsConstituent(relation.getTarget)
 
-      if (!(m1.exists(_.nonEmpty) && m2.exists(_.nonEmpty))) {
+      val m1 = mentionView.getConstituentsCovering(relation.getSource).filter(predicateForSource.transform)
+      val m2 = mentionView.getConstituentsCovering(relation.getTarget).filter(predicateForTarget.transform)
+
+      if (m1.isEmpty || m2.isEmpty) {
         logger.warn("Cannot find constituents")
 
         None
@@ -97,63 +98,63 @@ object RESensors extends Logging {
         relationAttributes.put("label", relLabel)
         relationAttributes.put("lexicalCondition", lexicalCondition)
 
-        Some(((m1.get.head, m2.get.head), relationAttributes))
+        Some(((m1.head, m2.head), relationAttributes))
       }
     })
   }
 
   private def formRelationTraningExamples(candMentions: JMap[Integer, JList[Mention]], goldRelations: Seq[((Constituent, Constituent), JMap[String, String])]): Seq[SemanticRelation] = {
-    candMentions.keySet().flatMap({ case sentId: Integer =>
-      val mentions = candMentions.get(sentId)
+    candMentions.keySet().flatMap({
+      case sentId: Integer =>
+        val mentions = candMentions.get(sentId)
 
-      try {
-        MentionUtil.sortMentionAsc(mentions)
-      } catch {
-        case e: Exception => logger.error("Error while sorting mentions!", e); Seq.empty
-      }
-
-      if (mentions.size() <= 1) {
-        Seq.empty
-      } else {
-
-        val validRelations = for (
-          first <- 1 until mentions.size();
-          second <- 1 until mentions.size()
-          if first != second
-        ) yield {
-          val m1 = mentions.get(first)
-          val m2 = mentions.get(second)
-          val relation = new SemanticRelation(m1, m2)
-
-          val directedRel = goldRelations.find({ case ((gold1, gold2), _) =>
-            MentionUtil.compareConstituents(m1.getConstituent, gold1) &&
-              MentionUtil.compareConstituents(m2.getConstituent, gold2)
-          })
-
-          val reverseRel = goldRelations.find({ case ((gold1, gold2), _) =>
-            MentionUtil.compareConstituents(m2.getConstituent, gold1) &&
-              MentionUtil.compareConstituents(m1.getConstituent, gold2)
-          })
-
-          if (directedRel.isDefined || reverseRel.isDefined) {
-            val labelMap = if (directedRel.isDefined) directedRel.get._2 else reverseRel.get._2
-            val fineLabel = labelMap.get("label")
-            val lexicalCondition = labelMap.get("lexicalCondition")
-            val coarseLabel = if (fineLabel.indexOf(":") == -1) fineLabel else fineLabel.substring(0, fineLabel.indexOf(":"))
-
-            val prefix = if (directedRel.isDefined) "m1-" else "m2-"
-            val suffix = if (directedRel.isDefined) "-m2" else "-m1"
-
-            relation.setFineLabel(prefix + fineLabel + suffix)
-            relation.setLexicalCondition(lexicalCondition)
-            relation.setCoarseLabel(prefix + coarseLabel + suffix)
-          }
-
-          relation
+        try {
+          MentionUtil.sortMentionAsc(mentions)
+        } catch {
+          case e: Exception => logger.error("Error while sorting mentions!", e); Seq.empty
         }
 
-        validRelations
-      }
+        if (mentions.size() <= 1) {
+          Seq.empty
+        } else {
+
+          val validRelations = for (
+            m1 <- mentions;
+            m2 <- mentions if m1 != m2
+          ) yield {
+            val relation = new SemanticRelation(m1, m2)
+
+            val directedRel = goldRelations.find({
+              case ((gold1, gold2), _) =>
+                MentionUtil.compareConstituents(m1.getConstituent, gold1) &&
+                  MentionUtil.compareConstituents(m2.getConstituent, gold2)
+            })
+
+            val reverseRel = goldRelations.find({
+              case ((gold1, gold2), _) =>
+                MentionUtil.compareConstituents(m2.getConstituent, gold1) &&
+                  MentionUtil.compareConstituents(m1.getConstituent, gold2)
+            })
+
+            if (directedRel.isDefined || reverseRel.isDefined) {
+              val labelMap = if (directedRel.isDefined) directedRel.get._2 else reverseRel.get._2
+              val fineLabel = labelMap.get("label")
+              val lexicalCondition = labelMap.get("lexicalCondition")
+              val coarseLabel = if (fineLabel.indexOf(":") == -1) fineLabel else fineLabel.substring(0, fineLabel.indexOf(":"))
+
+              val prefix = if (directedRel.isDefined) "m1-" else "m2-"
+              val suffix = if (directedRel.isDefined) "-m2" else "-m1"
+
+              relation.setFineLabel(prefix + fineLabel + suffix)
+              relation.setLexicalCondition(lexicalCondition)
+              relation.setCoarseLabel(prefix + coarseLabel + suffix)
+            }
+
+            relation
+          }
+
+          validRelations
+        }
     }).toSeq
   }
 }

@@ -138,8 +138,8 @@ object RelationExtractionApp extends Logging {
     import REConstrainedClassifiers._
 
     evaluate[SemanticRelation](testInstances, "Relation Fine", fold, relationTypeFineClassifier(_), _.getFineLabel, excludeList) ::
-      evaluate[SemanticRelation](testInstances, "Relation Coarse", fold, relationTypeCoarseClassifier(_), _.getCoarseLabel, excludeList) :: Nil
-    //      evaluate[SemanticRelation](testInstances, "Relation Hierarchy Constraint", fold, relationHierarchyConstrainedClassifier.classifier.discreteValue, _.getFineLabel, excludeList) :: Nil
+      evaluate[SemanticRelation](testInstances, "Relation Coarse", fold, relationTypeCoarseClassifier(_), _.getCoarseLabel, excludeList) ::
+      evaluate[SemanticRelation](testInstances, "Relation Hierarchy Constraint", fold, relationHierarchyConstrainedClassifier.classifier.discreteValue, _.getFineLabel, excludeList) :: Nil
   }
 
   private def evaluate[T](
@@ -242,11 +242,11 @@ object RelationExtractionApp extends Logging {
     * @return List of TextAnnotation items each of them representing a single document
     */
   def loadDataFromCache: Iterator[TextAnnotation] = {
-    val datasetRootPath = "data/ace04/data/English"
+    val datasetRootPath = "../data/ace04/data/English"
     val sections = Array("nw")
     val is2004Dataset = true
 
-    val cacheFilePath = "data/ace04.index"
+    val cacheFilePath = "../data/ace04.index"
     val cacheFile = new File(cacheFilePath)
 
     val annotatorService = CuratorFactory.buildCuratorClient
@@ -294,6 +294,6 @@ object RelationExtractionApp extends Logging {
       }
     }
 
-    taList.take(5).toIterator
+    taList.toIterator
   }
 }
