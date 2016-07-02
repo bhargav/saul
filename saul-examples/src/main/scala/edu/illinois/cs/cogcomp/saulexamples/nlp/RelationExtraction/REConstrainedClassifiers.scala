@@ -1,6 +1,7 @@
 package edu.illinois.cs.cogcomp.saulexamples.nlp.RelationExtraction
 
 import edu.illinois.cs.cogcomp.illinoisRE.data.SemanticRelation
+import edu.illinois.cs.cogcomp.lbjava.infer.OJalgoHook
 import edu.illinois.cs.cogcomp.saul.classifier.ConstrainedClassifier
 import edu.illinois.cs.cogcomp.saulexamples.nlp.RelationExtraction.REClassifiers._
 import edu.illinois.cs.cogcomp.saul.constraint.ConstraintTypeConversion._
@@ -13,5 +14,6 @@ object REConstrainedClassifiers {
     relationTypeFineClassifier
   ) {
     def subjectTo = REConstraints.relationHierarchyConstraint
+    override def solver = new OJalgoHook()
   }
 }
