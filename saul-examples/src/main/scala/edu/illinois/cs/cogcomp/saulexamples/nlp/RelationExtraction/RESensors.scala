@@ -1,14 +1,13 @@
 package edu.illinois.cs.cogcomp.saulexamples.nlp.RelationExtraction
 
-import java.util.{ List => JList, Map => JMap, HashMap => JHashMap }
-
+import edu.illinois.cs.cogcomp.core.datastructures.ViewNames
+import java.util.{ HashMap => JHashMap, List => JList, Map => JMap }
 import edu.illinois.cs.cogcomp.core.datastructures.textannotation._
 import edu.illinois.cs.cogcomp.illinoisRE.data.{ Mention, SemanticRelation }
 import edu.illinois.cs.cogcomp.illinoisRE.mention.MentionUtil
 import edu.illinois.cs.cogcomp.illinoisRE.relation.RelationExtractor
 import edu.illinois.cs.cogcomp.nlp.corpusreaders.ACEReader
 import edu.illinois.cs.cogcomp.saul.util.Logging
-
 import scala.collection.JavaConversions._
 
 object RESensors extends Logging {
@@ -27,11 +26,11 @@ object RESensors extends Logging {
   /** Sensor to extract second Mention from a [[SemanticRelation]] instance */
   def relationToSecondMention(relation: SemanticRelation): Constituent = relation.getM2.getConstituent
 
-  def populateRelations(document: TextAnnotation, mentionViewName: String, goldRelationViewName: String): Seq[SemanticRelation] = {
+  def populateRelations(document: TextAnnotation, mentionViewName: String, fineRelationView: String, coarseRelationView: String): Seq[SemanticRelation] = {
     val constituents = document.getView(mentionViewName).getConstituents
     val mentions = convertConstituentsIntoMentions(constituents, discardNullMentions = true)
     val sentenceMentions = RelationExtractor.indexMentionsBySentence(mentions)
-    val goldRelations = getGoldRelations(document, mentionViewName, goldRelationViewName)
+    val goldRelations = getGoldRelations(document, mentionViewName, fineRelationView, coarseRelationView)
 
     formRelationTraningExamples(sentenceMentions, goldRelations)
   }
@@ -66,12 +65,14 @@ object RESensors extends Logging {
     *
     * @param document [[TextAnnotation]] document instance
     * @param mentionViewName View Name for Mentions
-    * @param goldViewName View Name for Gold Relations
+    * @param relationFineViewName View Name for Fine Relations - Gold
+    * @param relationCoarseViewName View Name for Coarse Relations - Gold
     * @return Gold relation data
     */
-  private def getGoldRelations(document: TextAnnotation, mentionViewName: String, goldViewName: String): Seq[((Constituent, Constituent), JMap[String, String])] = {
+  private def getGoldRelations(document: TextAnnotation, mentionViewName: String, relationFineViewName: String, relationCoarseViewName: String): Seq[((Constituent, Constituent), JMap[String, String])] = {
     val mentionView = document.getView(mentionViewName)
-    val relationView: PredicateArgumentView = document.getView(goldViewName).asInstanceOf[PredicateArgumentView]
+    val relationView: PredicateArgumentView = document.getView(relationFineViewName).asInstanceOf[PredicateArgumentView]
+    val coarseRelationView: PredicateArgumentView = document.getView(relationCoarseViewName).asInstanceOf[PredicateArgumentView]
 
     relationView.getRelations.flatMap({ relation: Relation =>
       val predicateForSource = Queries.sameSpanAsConstituent(relation.getSource)
@@ -80,7 +81,13 @@ object RESensors extends Logging {
       val m1 = mentionView.getConstituentsCovering(relation.getSource).filter(predicateForSource.transform)
       val m2 = mentionView.getConstituentsCovering(relation.getTarget).filter(predicateForTarget.transform)
 
-      if (m1.isEmpty || m2.isEmpty) {
+      val m1Coarse = coarseRelationView.getConstituentsCovering(relation.getSource).filter(predicateForSource.transform)
+      val coarseRelation = Option(m1Coarse).map(_.head)
+        .map(_.getOutgoingRelations)
+        .map(_.filter(rel => predicateForTarget.transform(rel.getTarget)))
+        .flatMap(_.headOption)
+
+      if (m1.isEmpty || m2.isEmpty || coarseRelation.isEmpty) {
         logger.warn("Cannot find constituents")
 
         None
@@ -95,7 +102,8 @@ object RESensors extends Logging {
         }
 
         val relationAttributes: JMap[String, String] = new JHashMap[String, String]()
-        relationAttributes.put("label", relLabel)
+        relationAttributes.put("fineLabel", relLabel)
+        relationAttributes.put("coarseLabel", coarseRelation.get.getRelationName)
         relationAttributes.put("lexicalCondition", lexicalCondition)
 
         Some(((m1.head, m2.head), relationAttributes))
@@ -138,9 +146,9 @@ object RESensors extends Logging {
 
             if (directedRel.isDefined || reverseRel.isDefined) {
               val labelMap = if (directedRel.isDefined) directedRel.get._2 else reverseRel.get._2
-              val fineLabel = labelMap.get("label")
+              val coarseLabel = labelMap.get("coarseLabel")
+              val fineLabel = coarseLabel + ":" + labelMap.get("fineLabel")
               val lexicalCondition = labelMap.get("lexicalCondition")
-              val coarseLabel = if (fineLabel.indexOf(":") == -1) fineLabel else fineLabel.substring(0, fineLabel.indexOf(":"))
 
               val prefix = if (directedRel.isDefined) "m1-" else "m2-"
               val suffix = if (directedRel.isDefined) "-m2" else "-m1"

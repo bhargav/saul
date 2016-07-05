@@ -1,9 +1,8 @@
 package edu.illinois.cs.cogcomp.saulexamples.nlp.RelationExtraction
 
 import java.io._
-
 import edu.illinois.cs.cogcomp.core.datastructures.ViewNames
-import edu.illinois.cs.cogcomp.core.datastructures.textannotation.{ Constituent, TextAnnotation, SpanLabelView }
+import edu.illinois.cs.cogcomp.core.datastructures.textannotation.{ Constituent, SpanLabelView, TextAnnotation }
 import edu.illinois.cs.cogcomp.curator.CuratorFactory
 import edu.illinois.cs.cogcomp.illinoisRE.common.Document
 import edu.illinois.cs.cogcomp.illinoisRE.data.SemanticRelation
@@ -14,7 +13,6 @@ import edu.illinois.cs.cogcomp.lbjava.learn.Softmax
 import edu.illinois.cs.cogcomp.saul.classifier.ClassifierUtils
 import edu.illinois.cs.cogcomp.saul.util.Logging
 import org.joda.time.DateTime
-
 import scala.collection.JavaConversions._
 import scala.collection.mutable
 
@@ -113,8 +111,19 @@ object RelationExtractionApp extends Logging {
     REDataModel.documents.populate(trainDocs)
     REDataModel.documents.populate(testDocs, train = false)
 
-    val trainRelations = trainDocs.flatMap(ta => RESensors.populateRelations(ta, REConstants.TYPED_CANDIDATE_MENTION_VIEW, ViewNames.RELATION_ACE_FINE_HEAD))
-    val testRelations = testDocs.flatMap(ta => RESensors.populateRelations(ta, REConstants.TYPED_CANDIDATE_MENTION_VIEW, ViewNames.RELATION_ACE_FINE_HEAD))
+    val trainRelations = trainDocs.flatMap(ta => RESensors.populateRelations(
+      ta,
+      REConstants.TYPED_CANDIDATE_MENTION_VIEW,
+      ViewNames.RELATION_ACE_FINE_HEAD,
+      ViewNames.RELATION_ACE_COARSE_HEAD
+    ))
+
+    val testRelations = testDocs.flatMap(ta => RESensors.populateRelations(
+      ta,
+      REConstants.TYPED_CANDIDATE_MENTION_VIEW,
+      ViewNames.RELATION_ACE_FINE_HEAD,
+      ViewNames.RELATION_ACE_COARSE_HEAD
+    ))
 
     REDataModel.pairedRelations.populate(trainRelations)
     REDataModel.pairedRelations.populate(testRelations, train = false)
