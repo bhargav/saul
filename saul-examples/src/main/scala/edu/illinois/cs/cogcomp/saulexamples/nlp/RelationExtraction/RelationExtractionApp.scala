@@ -10,7 +10,10 @@ import edu.illinois.cs.cogcomp.illinoisRE.mention.MentionDetector
 import edu.illinois.cs.cogcomp.nlp.corpusreaders.ACEReader
 import edu.illinois.cs.cogcomp.lbjava.classify.TestDiscrete
 import edu.illinois.cs.cogcomp.lbjava.learn.Softmax
+import edu.illinois.cs.cogcomp.lbjava.parse.FoldParser
+import edu.illinois.cs.cogcomp.lbjava.parse.FoldParser.SplitPolicy
 import edu.illinois.cs.cogcomp.saul.classifier.ClassifierUtils
+import edu.illinois.cs.cogcomp.saul.parser.{ IterableToLBJavaParser, LBJavaParserToIterable }
 import edu.illinois.cs.cogcomp.saul.util.Logging
 import org.joda.time.DateTime
 import scala.collection.JavaConversions._
@@ -40,23 +43,23 @@ object RelationExtractionApp extends Logging {
       .find(_.toString == args.headOption.getOrElse())
       .getOrElse(REExperimentType.RunRelationCV)
 
-    val docs = loadDataFromCache.toIterable
+    val docs = loadDataFromCache
     docs.foreach(preProcessDocument)
 
     val numSentences = docs.map(_.getNumberOfSentences).sum
     println(s"Total number of sentences = $numSentences")
 
     val numFolds = 5
+    val dataReader = new IterableToLBJavaParser(docs)
+    val foldParser = new FoldParser(dataReader, numFolds, SplitPolicy.sequential, 0, false, docs.size)
 
-    val experimentResult: List[EvaluationResult] = {
-      experimentType match {
-        case REExperimentType.RunMentionCV => runMentionClassifierCVExperiment(docs, numFolds)
-        case REExperimentType.RunRelationCV => runRelationClassifierCVExperiment(docs, numFolds, useBrownFeatures = false)
-        case REExperimentType.RunRelationCVWithBrownFeatures => runRelationClassifierCVExperiment(docs, numFolds, useBrownFeatures = true)
-      }
+    val experimentResult: List[EvaluationResult] = experimentType match {
+      case REExperimentType.RunMentionCV => runMentionClassifierCVExperiment(foldParser, numFolds)
+      case REExperimentType.RunRelationCV => runRelationClassifierCVExperiment(foldParser, numFolds, useBrownFeatures = false)
+      case REExperimentType.RunRelationCVWithBrownFeatures => runRelationClassifierCVExperiment(foldParser, numFolds, useBrownFeatures = true)
     }
 
-    val outputStream = new PrintStream(new FileOutputStream(s"results_${DateTime.now().toString("MM-DD-YY-HH-mm")}.txt"))
+    val outputStream = new PrintStream(new FileOutputStream(s"${experimentType}_${DateTime.now()}.txt"))
 
     // Evaluation
     experimentResult.groupBy(_.classifierName).foreach({
@@ -66,9 +69,9 @@ object RelationExtractionApp extends Logging {
     })
   }
 
-  def runMentionClassifierCVExperiment(docs: Iterable[TextAnnotation], numFolds: Int) = {
+  def runMentionClassifierCVExperiment(docs: FoldParser, numFolds: Int) = {
     (0 until numFolds).flatMap({ fold =>
-      setupDataModelForFold(docs, fold, numFolds)
+      setupDataModelForFold(docs, fold, populateRelations = false)
 
       println(s"Total number of mentions = ${REDataModel.tokens.getTrainingInstances.size}" +
         s" / ${REDataModel.tokens.getTestingInstances.size}")
@@ -84,11 +87,11 @@ object RelationExtractionApp extends Logging {
     }).toList
   }
 
-  def runRelationClassifierCVExperiment(docs: Iterable[TextAnnotation], numFolds: Int, useBrownFeatures: Boolean) = {
+  def runRelationClassifierCVExperiment(docs: FoldParser, numFolds: Int, useBrownFeatures: Boolean) = {
     REClassifiers.useRelationBrownFeatures = useBrownFeatures
 
     (0 until numFolds).flatMap({ fold =>
-      setupDataModelForFold(docs, fold, numFolds)
+      setupDataModelForFold(docs, fold, populateRelations = true)
 
       println(s"Total number of relations = ${REDataModel.pairedRelations.getTrainingInstances.size}" +
         s" / ${REDataModel.pairedRelations.getTestingInstances.size}")
@@ -102,31 +105,45 @@ object RelationExtractionApp extends Logging {
     }).toList
   }
 
-  private def setupDataModelForFold(docs: Iterable[TextAnnotation], fold: Int, numFolds: Int): Unit = {
-    val groupedDocs = docs.zipWithIndex.groupBy({ case (doc, index) => index % numFolds == fold })
-    val testDocs = groupedDocs(true).map(_._1)
-    val trainDocs = groupedDocs(false).map(_._1)
+  private def setupDataModelForFold(
+    foldParser: FoldParser,
+    fold: Int,
+    populateRelations: Boolean
+  ): Unit = {
+
+    // Get the training docs.
+    foldParser.setPivot(fold)
+    foldParser.setFromPivot(false)
+    val trainDocs = new LBJavaParserToIterable(foldParser).toList
+
+    // Get the testing docs.
+    foldParser.reset()
+    foldParser.setFromPivot(true)
+    val testDocs = new LBJavaParserToIterable(foldParser).toList
 
     REDataModel.clearInstances
+
     REDataModel.documents.populate(trainDocs)
     REDataModel.documents.populate(testDocs, train = false)
 
-    val trainRelations = trainDocs.flatMap(ta => RESensors.populateRelations(
-      ta,
-      REConstants.TYPED_CANDIDATE_MENTION_VIEW,
-      ViewNames.RELATION_ACE_FINE_HEAD,
-      ViewNames.RELATION_ACE_COARSE_HEAD
-    ))
+    if (populateRelations) {
+      val trainRelations = trainDocs.flatMap(textAnnotation => RESensors.populateRelations(
+        textAnnotation,
+        REConstants.TYPED_CANDIDATE_MENTION_VIEW,
+        ViewNames.RELATION_ACE_FINE_HEAD,
+        ViewNames.RELATION_ACE_COARSE_HEAD
+      ))
 
-    val testRelations = testDocs.flatMap(ta => RESensors.populateRelations(
-      ta,
-      REConstants.TYPED_CANDIDATE_MENTION_VIEW,
-      ViewNames.RELATION_ACE_FINE_HEAD,
-      ViewNames.RELATION_ACE_COARSE_HEAD
-    ))
+      val testRelations = testDocs.flatMap(textAnnotation => RESensors.populateRelations(
+        textAnnotation,
+        REConstants.TYPED_CANDIDATE_MENTION_VIEW,
+        ViewNames.RELATION_ACE_FINE_HEAD,
+        ViewNames.RELATION_ACE_COARSE_HEAD
+      ))
 
-    REDataModel.pairedRelations.populate(trainRelations)
-    REDataModel.pairedRelations.populate(testRelations, train = false)
+      REDataModel.pairedRelations.populate(trainRelations)
+      REDataModel.pairedRelations.populate(testRelations, train = false)
+    }
   }
 
   def evaluateMentionTypeClassifier(fold: Int): List[EvaluationResult] = {
@@ -250,12 +267,14 @@ object RelationExtractionApp extends Logging {
     *
     * @return List of TextAnnotation items each of them representing a single document
     */
-  def loadDataFromCache: Iterator[TextAnnotation] = {
-    val datasetRootPath = "../data/ace04/data/English"
+  def loadDataFromCache: Iterable[TextAnnotation] = {
+    val dataset = "ace04"
     val sections = Array("nw")
-    val is2004Dataset = true
 
-    val cacheFilePath = "../data/ace04.index"
+    val datasetRootPath = s"../data/$dataset/data/English"
+    val is2004Dataset = dataset.equals("ace04")
+
+    val cacheFilePath = s"../data/{$dataset}_${sections.reduce(_ + _)}.index"
     val cacheFile = new File(cacheFilePath)
 
     val annotatorService = CuratorFactory.buildCuratorClient
@@ -267,29 +286,30 @@ object RelationExtractionApp extends Logging {
       ViewNames.DEPENDENCY_STANFORD
     )
 
-    val taList = {
-      if (cacheFile.exists()) {
+    if (cacheFile.exists()) {
+      try {
+        val e = new ObjectInputStream(new FileInputStream(cacheFile.getPath))
+        val taItems = e.readObject.asInstanceOf[List[TextAnnotation]]
+        e.close()
+
+        taItems
+      } catch {
+        case ex: Exception => logger.error("Failure while reading cache file!", ex); Iterable.empty
+      }
+    } else {
+      val aceReader: Iterable[TextAnnotation] = new ACEReader(datasetRootPath, sections, is2004Dataset)
+      val items = aceReader.flatMap({ ta =>
         try {
-          val e = new ObjectInputStream(new FileInputStream(cacheFile.getPath))
-          val taItems = e.readObject.asInstanceOf[List[TextAnnotation]]
-          e.close()
-
-          taItems
+          // Add required views to the TextAnnotation
+          requiredViews.foreach(view => annotatorService.addView(ta, view))
+          Option(ta)
         } catch {
-          case ex: Exception => logger.error("Failure while reading cache file!", ex); List.empty
+          case e: Exception => logger.error("Annotator error!", e); None
         }
-      } else {
-        val aceReader: Iterable[TextAnnotation] = new ACEReader(datasetRootPath, sections, is2004Dataset)
-        val items = aceReader.flatMap({ ta =>
-          try {
-            // Add required views to the TextAnnotation
-            requiredViews.foreach(view => annotatorService.addView(ta, view))
-            Option(ta)
-          } catch {
-            case e: Exception => logger.error("Annotator error!", e); None
-          }
-        }).toList
+      })
 
+      if (items.nonEmpty) {
+        // Cache annotated TAs for faster processing
         try {
           val f = new FileOutputStream(cacheFile)
           val e = new ObjectOutputStream(f)
@@ -298,11 +318,9 @@ object RelationExtractionApp extends Logging {
         } catch {
           case ex: Exception => logger.error("Error while writing cache file!", ex)
         }
-
-        items
       }
-    }
 
-    taList.toIterator
+      items
+    }
   }
 }

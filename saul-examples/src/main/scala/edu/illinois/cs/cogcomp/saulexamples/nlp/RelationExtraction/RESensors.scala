@@ -1,6 +1,5 @@
 package edu.illinois.cs.cogcomp.saulexamples.nlp.RelationExtraction
 
-import edu.illinois.cs.cogcomp.core.datastructures.ViewNames
 import java.util.{ HashMap => JHashMap, List => JList, Map => JMap }
 import edu.illinois.cs.cogcomp.core.datastructures.textannotation._
 import edu.illinois.cs.cogcomp.illinoisRE.data.{ Mention, SemanticRelation }
