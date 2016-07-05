@@ -19,7 +19,7 @@ import org.joda.time.DateTime
 import scala.collection.JavaConversions._
 import scala.collection.mutable
 
-/** Created by Bhargav Mangipudi on 1/28/16.
+/** Relation Extraction
   */
 object RelationExtractionApp extends Logging {
 
@@ -36,6 +36,9 @@ object RelationExtractionApp extends Logging {
     val RunMentionCV, RunRelationCV, RunRelationCVWithBrownFeatures = Value
   }
 
+  private val DatasetTypeACE04 = "ace04"
+  private val DatasetTypeACE05 = "ace05"
+
   /** Main method */
   def main(args: Array[String]): Unit = {
     val experimentType = REExperimentType
@@ -43,7 +46,7 @@ object RelationExtractionApp extends Logging {
       .find(_.toString == args.headOption.getOrElse())
       .getOrElse(REExperimentType.RunRelationCV)
 
-    val docs = loadDataFromCache
+    val docs = loadDataset(DatasetTypeACE05)
     docs.foreach(preProcessDocument)
 
     val numSentences = docs.map(_.getNumberOfSentences).sum
@@ -53,7 +56,7 @@ object RelationExtractionApp extends Logging {
     val dataReader = new IterableToLBJavaParser(docs)
     val foldParser = new FoldParser(dataReader, numFolds, SplitPolicy.sequential, 0, false, docs.size)
 
-    val experimentResult: List[EvaluationResult] = experimentType match {
+    val experimentResult = experimentType match {
       case REExperimentType.RunMentionCV => runMentionClassifierCVExperiment(foldParser, numFolds)
       case REExperimentType.RunRelationCV => runRelationClassifierCVExperiment(foldParser, numFolds, useBrownFeatures = false)
       case REExperimentType.RunRelationCVWithBrownFeatures => runRelationClassifierCVExperiment(foldParser, numFolds, useBrownFeatures = true)
@@ -69,7 +72,7 @@ object RelationExtractionApp extends Logging {
     })
   }
 
-  def runMentionClassifierCVExperiment(docs: FoldParser, numFolds: Int) = {
+  def runMentionClassifierCVExperiment(docs: FoldParser, numFolds: Int): Iterable[EvaluationResult] = {
     (0 until numFolds).flatMap({ fold =>
       setupDataModelForFold(docs, fold, populateRelations = false)
 
@@ -84,10 +87,10 @@ object RelationExtractionApp extends Logging {
       //        addMentionPredictionView(REDataModel.documents.getTestingInstances, Constants.PRED_MENTION_VIEW)
 
       evaluateMentionTypeClassifier(fold)
-    }).toList
+    })
   }
 
-  def runRelationClassifierCVExperiment(docs: FoldParser, numFolds: Int, useBrownFeatures: Boolean) = {
+  def runRelationClassifierCVExperiment(docs: FoldParser, numFolds: Int, useBrownFeatures: Boolean): Iterable[EvaluationResult] = {
     REClassifiers.useRelationBrownFeatures = useBrownFeatures
 
     (0 until numFolds).flatMap({ fold =>
@@ -102,7 +105,7 @@ object RelationExtractionApp extends Logging {
       ClassifierUtils.TrainClassifiers(5, classifiers)
 
       evaluationRelationTypeClassifier(fold)
-    }).toList
+    })
   }
 
   private def setupDataModelForFold(
@@ -192,8 +195,8 @@ object RelationExtractionApp extends Logging {
   def preProcessDocument(document: TextAnnotation): Unit = {
     val tempDoc: Document = new Document(document)
 
-    //      Method adds candidates to CANDIDATE_MENTION_VIEW View to the TextAnnotation instance
-    //      Also adds a CHUNK_PARSE and a SHALLOW_PARSE
+    //    Method adds candidates to CANDIDATE_MENTION_VIEW View to the TextAnnotation instance.
+    //    Also adds a CHUNK_PARSE and a SHALLOW_PARSE
     MentionDetector.labelDocMentionCandidates(tempDoc)
 
     val goldTypedView = document.getView(ViewNames.NER_ACE_FINE_HEAD)
@@ -210,11 +213,9 @@ object RelationExtractionApp extends Logging {
     val allConstituents = new mutable.HashSet[Constituent]()
     goldTypedView.getConstituents.foreach(c => allConstituents.add(c))
 
-    logger.info(s"Number of constituents = ${goldTypedView.getNumberOfConstituents}")
-    logger.info(s"Number of constituents in HashSet = ${allConstituents.size}")
-
     mentionView.getConstituents.foreach({ c: Constituent =>
-      val goldOverlap = goldTypedView.getConstituents.filter(tc => c.getStartSpan == tc.getStartSpan && c.getEndSpan == tc.getEndSpan)
+      val goldOverlap = goldTypedView.getConstituents
+        .filter(tc => c.getStartSpan == tc.getStartSpan && c.getEndSpan == tc.getEndSpan)
       val label = if (goldOverlap.isEmpty) REConstants.NONE_MENTION else goldOverlap.head.getLabel
       val goldConstituent = goldOverlap.headOption
 
@@ -229,7 +230,7 @@ object RelationExtractionApp extends Logging {
 
       if (goldOverlap.nonEmpty) {
         if (!allConstituents.contains(goldConstituent.get)) {
-          logger.warn("Multiple Gold entities present")
+          logger.warn("Found multiple candidates for the same gold constituent.")
         } else {
           allConstituents.remove(goldOverlap.head)
         }
@@ -238,7 +239,6 @@ object RelationExtractionApp extends Logging {
 
     document.addView(REConstants.TYPED_CANDIDATE_MENTION_VIEW, typedView)
 
-    logger.info(s"Number of candidates generated = ${typedView.getNumberOfConstituents}")
     if (allConstituents.nonEmpty) {
       logger.warn(s"${allConstituents.size} entities not accounted for !!")
     }
@@ -267,8 +267,7 @@ object RelationExtractionApp extends Logging {
     *
     * @return List of TextAnnotation items each of them representing a single document
     */
-  def loadDataFromCache: Iterable[TextAnnotation] = {
-    val dataset = "ace04"
+  def loadDataset(dataset: String): Iterable[TextAnnotation] = {
     val sections = Array("nw")
 
     val datasetRootPath = s"../data/$dataset/data/English"
@@ -288,9 +287,9 @@ object RelationExtractionApp extends Logging {
 
     if (cacheFile.exists()) {
       try {
-        val e = new ObjectInputStream(new FileInputStream(cacheFile.getPath))
-        val taItems = e.readObject.asInstanceOf[List[TextAnnotation]]
-        e.close()
+        val inputStream = new ObjectInputStream(new FileInputStream(cacheFile.getPath))
+        val taItems = inputStream.readObject.asInstanceOf[List[TextAnnotation]]
+        inputStream.close()
 
         taItems
       } catch {
