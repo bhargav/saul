@@ -62,7 +62,7 @@ object RelationExtractionApp extends Logging {
       case REExperimentType.RunRelationCVWithBrownFeatures => runRelationClassifierCVExperiment(foldParser, numFolds, useBrownFeatures = true)
     }
 
-    val outputStream = new PrintStream(new FileOutputStream(s"${experimentType}_${DateTime.now()}.txt"))
+    val outputStream = new PrintStream(new FileOutputStream(s"${experimentType}_${DateTime.now().toString("mm-dd-yyyy_hh_mm")}.txt"))
 
     // Evaluation
     experimentResult.groupBy(_.classifierName).foreach({
@@ -117,12 +117,12 @@ object RelationExtractionApp extends Logging {
     // Get the training docs.
     foldParser.setPivot(fold)
     foldParser.setFromPivot(false)
-    val trainDocs = new LBJavaParserToIterable(foldParser).toList
+    val trainDocs = new LBJavaParserToIterable[TextAnnotation](foldParser).toList
 
     // Get the testing docs.
     foldParser.reset()
     foldParser.setFromPivot(true)
-    val testDocs = new LBJavaParserToIterable(foldParser).toList
+    val testDocs = new LBJavaParserToIterable[TextAnnotation](foldParser).toList
 
     REDataModel.clearInstances
 
@@ -216,25 +216,21 @@ object RelationExtractionApp extends Logging {
     mentionView.getConstituents.foreach({ c: Constituent =>
       val goldOverlap = goldTypedView.getConstituents
         .filter(tc => c.getStartSpan == tc.getStartSpan && c.getEndSpan == tc.getEndSpan)
-      val label = if (goldOverlap.isEmpty) REConstants.NONE_MENTION else goldOverlap.head.getLabel
-      val goldConstituent = goldOverlap.headOption
 
-      // Clone attributes as well if it is a valid label
-      goldConstituent.map(_.getAttributeKeys)
-        .foreach(_.foreach({
-          case key: String =>
-            c.addAttribute(key, goldConstituent.get.getAttribute(key))
-        }))
+      val label = goldOverlap.headOption
+        .map(cons => cons.getAttribute(ACEReader.EntityTypeAttribute) + ":" + cons.getLabel)
+        .getOrElse(REConstants.NONE_MENTION)
 
       typedView.addSpanLabel(c.getStartSpan, c.getEndSpan, label, 1.0)
 
-      if (goldOverlap.nonEmpty) {
-        if (!allConstituents.contains(goldConstituent.get)) {
+      // Update book-keeping
+      goldOverlap.foreach({ goldConstituent =>
+        if (!allConstituents.contains(goldConstituent)) {
           logger.warn("Found multiple candidates for the same gold constituent.")
         } else {
           allConstituents.remove(goldOverlap.head)
         }
-      }
+      })
     })
 
     document.addView(REConstants.TYPED_CANDIDATE_MENTION_VIEW, typedView)
@@ -273,7 +269,7 @@ object RelationExtractionApp extends Logging {
     val datasetRootPath = s"../data/$dataset/data/English"
     val is2004Dataset = dataset.equals("ace04")
 
-    val cacheFilePath = s"../data/{$dataset}_${sections.reduce(_ + _)}.index"
+    val cacheFilePath = s"data/${dataset}_${sections.reduce(_ + "_" + _)}.index"
     val cacheFile = new File(cacheFilePath)
 
     val annotatorService = CuratorFactory.buildCuratorClient
@@ -308,7 +304,7 @@ object RelationExtractionApp extends Logging {
       })
 
       if (items.nonEmpty) {
-        // Cache annotated TAs for faster processing
+        // Cache annotated TAs for faster processing and not calling Curator always.
         try {
           val f = new FileOutputStream(cacheFile)
           val e = new ObjectOutputStream(f)

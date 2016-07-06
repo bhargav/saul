@@ -45,18 +45,7 @@ object RESensors extends Logging {
 
     consList.map({ cons: Constituent =>
       val id = s"${cons.getStartSpan}-${cons.getEndSpan}"
-      val mention = new Mention(id, cons)
-
-      // For ACEReader, SubType is an optional parameter.
-      // Fallback to Coarse type in such an instance.
-      if (cons.hasAttribute(ACEReader.EntitySubtypeAttribute)) {
-        mention.setFineSC(cons.getAttribute(ACEReader.EntitySubtypeAttribute))
-      } else if (cons.hasAttribute(ACEReader.EntityTypeAttribute)) {
-        mention.setFineSC(cons.getAttribute(ACEReader.EntityTypeAttribute))
-        mention.setSC(cons.getAttribute(ACEReader.EntityTypeAttribute))
-      }
-
-      mention
+      new Mention(id, cons)
     })
   }
 
