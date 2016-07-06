@@ -28,6 +28,9 @@ or verb of a sentence and their classification into their specific roles.
 5. [Part-of-Speech Tagging](src/main/scala/edu/illinois/cs/cogcomp/saulexamples/nlp/POSTagger/README.md): 
 Part-of-Speech Tagging is the identification of words as nouns, verbs, adjectives, adverbs, etc. 
 
+6. [Relation Extraction](src/main/scala/edu/illinois/cs/cogcomp/saulexamples/nlp/RelationExtraction/README.md):
+Relation Extraction is the task of identifying and classifying Relation between Entity mentions in a document.
+
 * Note: Examples are under active development. 
 
 ## Prerequisites for this examples package 
