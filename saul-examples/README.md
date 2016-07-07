@@ -17,19 +17,19 @@ The entity-relation extraction task through
 which designing various training and prediction configurations are exemplified. 
 One can see how local, global and pipeline configurations are designed, used and evaluated in Saul.
 
-3. [Spam Classification](src/main/scala/edu/illinois/cs/cogcomp/saulexamples/nlp/EmailSpam/README.md): 
+3. [Relation Extraction](src/main/scala/edu/illinois/cs/cogcomp/saulexamples/nlp/RelationExtraction/README.md):
+Relation Extraction is the task of identifying and classifying Relation between Entity mentions in a document.
+
+4. [Spam Classification](src/main/scala/edu/illinois/cs/cogcomp/saulexamples/nlp/EmailSpam/README.md):
 A third example which is a binary classification task 
 to classify text documents as either Spam or Not Spam was also created.
 
-4. [Semantic Role Labeling](src/main/scala/edu/illinois/cs/cogcomp/saulexamples/nlp/SemanticRoleLabeling/README.md): 
+5. [Semantic Role Labeling](src/main/scala/edu/illinois/cs/cogcomp/saulexamples/nlp/SemanticRoleLabeling/README.md):
 a task in natural language processing consisting of the detection of the semantic arguments associated with the predicate 
 or verb of a sentence and their classification into their specific roles.
 
-5. [Part-of-Speech Tagging](src/main/scala/edu/illinois/cs/cogcomp/saulexamples/nlp/POSTagger/README.md): 
+6. [Part-of-Speech Tagging](src/main/scala/edu/illinois/cs/cogcomp/saulexamples/nlp/POSTagger/README.md):
 Part-of-Speech Tagging is the identification of words as nouns, verbs, adjectives, adverbs, etc. 
-
-6. [Relation Extraction](src/main/scala/edu/illinois/cs/cogcomp/saulexamples/nlp/RelationExtraction/README.md):
-Relation Extraction is the task of identifying and classifying Relation between Entity mentions in a document.
 
 * Note: Examples are under active development. 
 

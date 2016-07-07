@@ -8,7 +8,7 @@ package edu.illinois.cs.cogcomp.saulexamples.nlp.RelationExtraction
 
 import java.io._
 import edu.illinois.cs.cogcomp.core.datastructures.ViewNames
-import edu.illinois.cs.cogcomp.core.datastructures.textannotation.{Constituent, SpanLabelView, TextAnnotation}
+import edu.illinois.cs.cogcomp.core.datastructures.textannotation.{ Constituent, SpanLabelView, TextAnnotation }
 import edu.illinois.cs.cogcomp.curator.CuratorFactory
 import edu.illinois.cs.cogcomp.illinoisRE.common.Document
 import edu.illinois.cs.cogcomp.illinoisRE.mention.MentionDetector
@@ -16,8 +16,8 @@ import edu.illinois.cs.cogcomp.lbjava.learn.Softmax
 import edu.illinois.cs.cogcomp.lbjava.parse.FoldParser
 import edu.illinois.cs.cogcomp.lbjava.parse.FoldParser.SplitPolicy
 import edu.illinois.cs.cogcomp.nlp.corpusreaders.ACEReader
-import edu.illinois.cs.cogcomp.saul.classifier.{ClassifierUtils, JointTrainSparseNetwork}
-import edu.illinois.cs.cogcomp.saul.parser.{IterableToLBJavaParser, LBJavaParserToIterable}
+import edu.illinois.cs.cogcomp.saul.classifier.{ ClassifierUtils, JointTrainSparseNetwork }
+import edu.illinois.cs.cogcomp.saul.parser.{ IterableToLBJavaParser, LBJavaParserToIterable }
 import edu.illinois.cs.cogcomp.saul.util.Logging
 import org.joda.time.DateTime
 import scala.collection.JavaConversions._
@@ -28,7 +28,7 @@ import scala.collection.mutable
 object RelationExtractionApp extends Logging {
   /** Enumerates Experiment Type */
   object REExperimentType extends Enumeration {
-    val MentionCV, RelationCV, RelationCVWithBrownFeatures, JointTraining, JointTrainingWithBrownFeatures  = Value
+    val MentionCV, RelationCV, RelationCVWithBrownFeatures, JointTraining, JointTrainingWithBrownFeatures = Value
   }
 
   private val DatasetTypeACE04 = "ace04"
@@ -46,7 +46,7 @@ object RelationExtractionApp extends Logging {
     docs.foreach(preProcessDocument)
 
     val numSentences = docs.map(_.getNumberOfSentences).sum
-    println(s"Total number of sentences = $numSentences")
+    logger.info(s"Total number of sentences = $numSentences")
 
     val numFolds = 5
     val numTrainingInstances = 5
@@ -95,7 +95,7 @@ object RelationExtractionApp extends Logging {
     (0 until numFolds).flatMap({ fold =>
       setupDataModelForFold(docs, fold, populateRelations = false)
 
-      println(s"Total number of mentions = ${REDataModel.tokens.getTrainingInstances.size}" +
+      logger.info(s"Total number of mentions = ${REDataModel.tokens.getTrainingInstances.size}" +
         s" / ${REDataModel.tokens.getTestingInstances.size}")
 
       val classifiers = List(REClassifiers.mentionTypeFineClassifier, REClassifiers.mentionTypeCoarseClassifier)
@@ -127,7 +127,7 @@ object RelationExtractionApp extends Logging {
     (0 until numFolds).flatMap({ fold =>
       setupDataModelForFold(docs, fold, populateRelations = true)
 
-      println(s"Total number of relations = ${REDataModel.pairedRelations.getTrainingInstances.size}" +
+      logger.info(s"Total number of relations = ${REDataModel.pairedRelations.getTrainingInstances.size}" +
         s" / ${REDataModel.pairedRelations.getTestingInstances.size}")
 
       val classifiers = List(REClassifiers.relationTypeFineClassifier, REClassifiers.relationTypeCoarseClassifier)
@@ -159,7 +159,7 @@ object RelationExtractionApp extends Logging {
     (0 until numFolds).flatMap({ fold =>
       setupDataModelForFold(docs, fold, populateRelations = true)
 
-      println(s"Total number of relations = ${REDataModel.pairedRelations.getTrainingInstances.size}" +
+      logger.info(s"Total number of relations = ${REDataModel.pairedRelations.getTrainingInstances.size}" +
         s" / ${REDataModel.pairedRelations.getTestingInstances.size}")
 
       val classifiers = List(
@@ -177,7 +177,8 @@ object RelationExtractionApp extends Logging {
       JointTrainSparseNetwork.train(
         REDataModel.pairedRelations,
         REConstrainedClassifiers.relationHierarchyConstrainedClassifier :: Nil,
-        numTrainingIterations)
+        numTrainingIterations
+      )
 
       REEvaluation.evaluationRelationConstrainedClassifier(fold)
     })

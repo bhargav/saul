@@ -9,7 +9,7 @@ package edu.illinois.cs.cogcomp.saulexamples.nlp.RelationExtraction
 import edu.illinois.cs.cogcomp.core.datastructures.textannotation.Constituent
 import edu.illinois.cs.cogcomp.illinoisRE.data.SemanticRelation
 import edu.illinois.cs.cogcomp.lbjava.learn.SupportVectorMachine
-import edu.illinois.cs.cogcomp.saul.classifier.{Learnable, SparseNetworkLBP}
+import edu.illinois.cs.cogcomp.saul.classifier.{ Learnable, SparseNetworkLBP }
 import edu.illinois.cs.cogcomp.saulexamples.nlp.RelationExtraction.REDataModel._
 
 /** Created by Bhargav Mangipudi on 1/28/16.
