@@ -9,8 +9,7 @@ package edu.illinois.cs.cogcomp.saulexamples.nlp.RelationExtraction
 import edu.illinois.cs.cogcomp.core.datastructures.textannotation.Constituent
 import edu.illinois.cs.cogcomp.illinoisRE.data.SemanticRelation
 import edu.illinois.cs.cogcomp.lbjava.learn.SupportVectorMachine
-import edu.illinois.cs.cogcomp.saul.classifier.Learnable
-
+import edu.illinois.cs.cogcomp.saul.classifier.{Learnable, SparseNetworkLBP}
 import edu.illinois.cs.cogcomp.saulexamples.nlp.RelationExtraction.REDataModel._
 
 /** Created by Bhargav Mangipudi on 1/28/16.
@@ -121,12 +120,12 @@ object REClassifiers {
   object relationTypeFineClassifier extends Learnable[SemanticRelation](pairedRelations) {
     def label = relationFineLabel
     override def feature = if (useRelationBrownFeatures) using(relationFeatures ::: relationBrownClusterFeatures) else using(relationFeatures)
-    override lazy val classifier = new SupportVectorMachine(1, 0.1, -1, "L2LOSS_SVM_DUAL")
+    override lazy val classifier = new SparseNetworkLBP
   }
 
   object relationTypeCoarseClassifier extends Learnable[SemanticRelation](pairedRelations) {
     override def label = relationCoarseLabel
     override def feature = if (useRelationBrownFeatures) using(relationFeatures ::: relationBrownClusterFeatures) else using(relationFeatures)
-    override lazy val classifier = new SupportVectorMachine(1, 0.1, -1, "L2LOSS_SVM_DUAL")
+    override lazy val classifier = new SparseNetworkLBP
   }
 }

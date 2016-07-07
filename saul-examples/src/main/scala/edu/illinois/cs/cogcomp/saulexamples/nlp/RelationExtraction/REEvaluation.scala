@@ -42,6 +42,22 @@ object REEvaluation {
       evaluate[SemanticRelation](testInstances, "Relation Hierarchy Constraint", fold, relationHierarchyConstrainedClassifier.classifier.discreteValue, _.getFineLabel, excludeList) :: Nil
   }
 
+  def evaluationRelationConstrainedClassifier(fold: Int): List[EvaluationResult] = {
+    val testInstances = REDataModel.pairedRelations.getTestingInstances
+    val excludeList = REConstants.NO_RELATION :: Nil
+
+    import REConstrainedClassifiers._
+
+    evaluate[SemanticRelation](
+      testInstances,
+      "Relation Hierarchy Constraint",
+      fold,
+      relationHierarchyConstrainedClassifier.classifier.discreteValue,
+      _.getFineLabel,
+      excludeList
+    ) :: Nil
+  }
+
   private def evaluate[T](
     testInstances: Iterable[T],
     clfName: String,

@@ -7,9 +7,8 @@
 package edu.illinois.cs.cogcomp.saulexamples.nlp.RelationExtraction
 
 import java.io._
-
 import edu.illinois.cs.cogcomp.core.datastructures.ViewNames
-import edu.illinois.cs.cogcomp.core.datastructures.textannotation.{ Constituent, SpanLabelView, TextAnnotation }
+import edu.illinois.cs.cogcomp.core.datastructures.textannotation.{Constituent, SpanLabelView, TextAnnotation}
 import edu.illinois.cs.cogcomp.curator.CuratorFactory
 import edu.illinois.cs.cogcomp.illinoisRE.common.Document
 import edu.illinois.cs.cogcomp.illinoisRE.mention.MentionDetector
@@ -17,12 +16,10 @@ import edu.illinois.cs.cogcomp.lbjava.learn.Softmax
 import edu.illinois.cs.cogcomp.lbjava.parse.FoldParser
 import edu.illinois.cs.cogcomp.lbjava.parse.FoldParser.SplitPolicy
 import edu.illinois.cs.cogcomp.nlp.corpusreaders.ACEReader
-import edu.illinois.cs.cogcomp.saul.classifier.ClassifierUtils
-import edu.illinois.cs.cogcomp.saul.parser.{ IterableToLBJavaParser, LBJavaParserToIterable }
+import edu.illinois.cs.cogcomp.saul.classifier.{ClassifierUtils, JointTrainSparseNetwork}
+import edu.illinois.cs.cogcomp.saul.parser.{IterableToLBJavaParser, LBJavaParserToIterable}
 import edu.illinois.cs.cogcomp.saul.util.Logging
-
 import org.joda.time.DateTime
-
 import scala.collection.JavaConversions._
 import scala.collection.mutable
 
@@ -31,7 +28,7 @@ import scala.collection.mutable
 object RelationExtractionApp extends Logging {
   /** Enumerates Experiment Type */
   object REExperimentType extends Enumeration {
-    val RunMentionCV, RunRelationCV, RunRelationCVWithBrownFeatures = Value
+    val MentionCV, RelationCV, RelationCVWithBrownFeatures, JointTraining, JointTrainingWithBrownFeatures  = Value
   }
 
   private val DatasetTypeACE04 = "ace04"
@@ -43,7 +40,7 @@ object RelationExtractionApp extends Logging {
     val experimentType = REExperimentType
       .values
       .find(_.toString == args.headOption.getOrElse())
-      .getOrElse(REExperimentType.RunRelationCV)
+      .getOrElse(REExperimentType.JointTraining)
 
     val docs = loadDataset(DatasetTypeACE05)
     docs.foreach(preProcessDocument)
@@ -57,21 +54,27 @@ object RelationExtractionApp extends Logging {
     val foldParser = new FoldParser(dataReader, numFolds, SplitPolicy.sequential, 0, false, docs.size)
 
     val experimentResult = experimentType match {
-      case REExperimentType.RunMentionCV => runMentionClassifierCVExperiment(
+      case REExperimentType.MentionCV => runMentionClassifierCVExperiment(
         foldParser,
         numFolds, numTrainingInstances
       )
-      case REExperimentType.RunRelationCV => runRelationClassifierCVExperiment(
+      case REExperimentType.RelationCV => runRelationClassifierCVExperiment(
         foldParser,
         numFolds, useBrownFeatures = false, numTrainingInstances
       )
-      case REExperimentType.RunRelationCVWithBrownFeatures => runRelationClassifierCVExperiment(
+      case REExperimentType.RelationCVWithBrownFeatures => runRelationClassifierCVExperiment(
+        foldParser, numFolds, useBrownFeatures = true, numTrainingInstances
+      )
+      case REExperimentType.JointTraining => runJointTrainingCVExperiment(
+        foldParser, numFolds, useBrownFeatures = false, numTrainingInstances
+      )
+      case REExperimentType.JointTrainingWithBrownFeatures => runJointTrainingCVExperiment(
         foldParser, numFolds, useBrownFeatures = true, numTrainingInstances
       )
     }
 
     val outputStream = new PrintStream(new FileOutputStream(
-      s"Results_${experimentType}_${DateTime.now().toString("mm-dd-yyyy_hh_mm")}.txt"
+      s"Results_${experimentType}_${DateTime.now().toString("M-d-yyyy_hh_mm")}.txt"
     ))
 
     // Evaluation Results
@@ -141,6 +144,42 @@ object RelationExtractionApp extends Logging {
       }
 
       REEvaluation.evaluationRelationTypeClassifier(fold)
+    })
+  }
+
+  def runJointTrainingCVExperiment(
+    docs: FoldParser,
+    numFolds: Int,
+    useBrownFeatures: Boolean,
+    numTrainingIterations: Int,
+    modelVersion: Int = 1
+  ): Iterable[EvaluationResult] = {
+    REClassifiers.useRelationBrownFeatures = useBrownFeatures
+
+    (0 until numFolds).flatMap({ fold =>
+      setupDataModelForFold(docs, fold, populateRelations = true)
+
+      println(s"Total number of relations = ${REDataModel.pairedRelations.getTrainingInstances.size}" +
+        s" / ${REDataModel.pairedRelations.getTestingInstances.size}")
+
+      val classifiers = List(
+        REClassifiers.relationTypeFineClassifier,
+        REClassifiers.relationTypeCoarseClassifier
+      )
+
+      val brownFeatureString = if (useBrownFeatures) "brown" else ""
+      classifiers.foreach({ clf =>
+        clf.forget()
+        clf.modelSuffix = s"RelationCV_${brownFeatureString}_v${modelVersion}_Fold_$fold"
+        clf.load()
+      })
+
+      JointTrainSparseNetwork.train(
+        REDataModel.pairedRelations,
+        REConstrainedClassifiers.relationHierarchyConstrainedClassifier :: Nil,
+        numTrainingIterations)
+
+      REEvaluation.evaluationRelationConstrainedClassifier(fold)
     })
   }
 
