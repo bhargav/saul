@@ -90,5 +90,4 @@ lazy val saulWebapp = (project in file("saul-webapp")).
     resolvers ++= Seq("scalaz-bintray" at "http://dl.bintray.com/scalaz/releases"),
     routesGenerator := InjectedRoutesGenerator
   ).dependsOn(saulExamples).aggregate(saulExamples)
-  ).dependsOn(saulExamples).aggregate(saulExamples)
   .enablePlugins(AutomateHeaderPlugin)
