@@ -154,12 +154,12 @@ object RelationExtractionApp extends Logging {
     // Get the training docs.
     foldParser.setPivot(fold)
     foldParser.setFromPivot(false)
-    val trainDocs = new LBJavaParserToIterable[TextAnnotation](foldParser)
+    val trainDocs = new LBJavaParserToIterable[TextAnnotation](foldParser).toList
 
     // Get the testing docs.
     foldParser.reset()
     foldParser.setFromPivot(true)
-    val testDocs = new LBJavaParserToIterable[TextAnnotation](foldParser)
+    val testDocs = new LBJavaParserToIterable[TextAnnotation](foldParser).toList
 
     REDataModel.clearInstances
 
@@ -292,7 +292,7 @@ object RelationExtractionApp extends Logging {
       }
     } else {
       val aceReader: Iterable[TextAnnotation] = new ACEReader(datasetRootPath, sections, is2004Dataset)
-      val items = aceReader.flatMap({ textAnnotation =>
+      val items = aceReader.map({ textAnnotation =>
         try {
           // Add required views to the TextAnnotation
           requiredViews.foreach(view => annotatorService.addView(textAnnotation, view))
@@ -301,6 +301,8 @@ object RelationExtractionApp extends Logging {
           case ex: Exception => logger.error("Annotator error!", ex); None
         }
       })
+        .filter(_.nonEmpty)
+        .map(_.get)
 
       if (items.nonEmpty) {
         // Cache annotated TAs for faster processing and not calling Curator always.
