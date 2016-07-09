@@ -23,6 +23,7 @@ trait NodeProperty[T <: AnyRef] extends Property[T] {
 }
 
 /** Representation of an instance inside the Node.
+  *
   * @param t original instance
   * @param keyFunc key function used to extract the key
   * @tparam T base type of the instances
@@ -292,8 +293,10 @@ class Node[T <: AnyRef](
   final val propertyCacheList = new ListBuffer[MutableHashMap[_, Any]]()
 
   def clearPropertyCache[T](): Unit = {
-    logger.info("clean property cache: cleaning " + propertyCacheList.size + " maps")
-    propertyCacheList.foreach(_.asInstanceOf[MutableHashMap[T, Any]].clear)
+    if (propertyCacheList.nonEmpty) {
+      logger.info("clean property cache: cleaning " + propertyCacheList.size + " maps")
+      propertyCacheList.foreach(_.asInstanceOf[MutableHashMap[T, Any]].clear)
+    }
   }
 }
 

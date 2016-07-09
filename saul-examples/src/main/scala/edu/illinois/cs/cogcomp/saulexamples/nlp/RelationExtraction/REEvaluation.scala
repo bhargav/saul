@@ -6,6 +6,8 @@
   */
 package edu.illinois.cs.cogcomp.saulexamples.nlp.RelationExtraction
 
+import java.io.{ FileOutputStream, PrintStream }
+
 import edu.illinois.cs.cogcomp.core.datastructures.textannotation.Constituent
 import edu.illinois.cs.cogcomp.illinoisRE.data.SemanticRelation
 import edu.illinois.cs.cogcomp.lbjava.classify.TestDiscrete
@@ -15,6 +17,13 @@ case class EvaluationResult(classifierName: String, foldIndex: Int, performance:
   override def toString: String = {
     val overallStats = performance.getOverallStats
     s"Classifier: $classifierName Fold $foldIndex - Precision: ${overallStats(0)} // Recall: ${overallStats(1)} // F1: ${overallStats(2)}"
+  }
+
+  def writeToDisk(path: String): Unit = {
+    val outputStream = new PrintStream(new FileOutputStream(path, true))
+    outputStream.println(toString)
+    performance.printPerformance(outputStream)
+    outputStream.close()
   }
 }
 

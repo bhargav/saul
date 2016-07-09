@@ -222,12 +222,12 @@ abstract class Learnable[T <: AnyRef](val node: Node[T], val parameters: Paramet
 
     isTraining = true
 
-    (iteration to 1 by -1).foreach(remainingIteration => {
-      if (remainingIteration % 10 == 0)
-        logger.info(s"Training: $remainingIteration iterations remain.")
+    (iteration to 1 by -1).foreach(f = remainingIteration => {
+      if (remainingIteration % 10 == 0) logger.info(s"Training: $remainingIteration iterations remain.")
 
       node.clearPropertyCache()
       data.foreach(classifier.learn)
+      classifier.doneWithRound()
     })
 
     classifier.doneLearning()

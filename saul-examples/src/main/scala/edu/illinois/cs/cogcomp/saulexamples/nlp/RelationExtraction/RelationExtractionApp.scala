@@ -22,6 +22,7 @@ import edu.illinois.cs.cogcomp.saul.util.Logging
 import org.joda.time.DateTime
 import scala.collection.JavaConversions._
 import scala.collection.mutable
+import scala.util.Random
 
 /** Relation Extraction
   */
@@ -33,6 +34,11 @@ object RelationExtractionApp extends Logging {
 
   private val DatasetTypeACE04 = "ace04"
   private val DatasetTypeACE05 = "ace05"
+
+  val negativeSamplingRate = 0.2
+  val negativeSamplingRateDecay = 0.95
+
+  val experimentFolder = "/shared/experiments/mangipu2/relation_decay_50_iterations" + File.separator
 
   /** Main method */
   def main(args: Array[String]): Unit = {
@@ -48,8 +54,11 @@ object RelationExtractionApp extends Logging {
     val numSentences = docs.map(_.getNumberOfSentences).sum
     logger.info(s"Total number of sentences = $numSentences")
 
+    val outputDirectory = new File(experimentFolder)
+    if (!outputDirectory.exists()) outputDirectory.mkdirs()
+
     val numFolds = 5
-    val numTrainingInstances = 5
+    val numTrainingInstances = 50
     val dataReader = new IterableToLBJavaParser(docs)
     val foldParser = new FoldParser(dataReader, numFolds, SplitPolicy.sequential, 0, false, docs.size)
 
@@ -74,7 +83,8 @@ object RelationExtractionApp extends Logging {
     }
 
     val outputStream = new PrintStream(new FileOutputStream(
-      s"Results_${experimentType}_${DateTime.now().toString("M-d-yyyy_hh_mm")}.txt"
+      experimentFolder +
+        s"Results_${experimentType}_${DateTime.now().toString("M-d-yyyy_hh_mm")}.txt"
     ))
 
     // Evaluation Results
@@ -101,7 +111,22 @@ object RelationExtractionApp extends Logging {
       val classifiers = List(REClassifiers.mentionTypeFineClassifier, REClassifiers.mentionTypeCoarseClassifier)
 
       classifiers.foreach(clf => clf.forget())
-      ClassifierUtils.TrainClassifiers(numTrainingIterations, classifiers)
+
+      (0 until numTrainingIterations).foreach({ round =>
+        ClassifierUtils.TrainClassifiers(round, classifiers)
+
+        if (round % 5 == 0 && saveModel) {
+          val intermediatePath = s"MentionCV_v${modelVersion}_Fold_${fold}_$round"
+
+          classifiers.foreach(clf => {
+            clf.modelSuffix = intermediatePath
+            clf.save()
+          })
+
+          val intermediateEvaluation = REEvaluation.evaluateMentionTypeClassifier(fold)
+          intermediateEvaluation.foreach(_.writeToDisk(experimentFolder + intermediatePath + "_Results.txt"))
+        }
+      })
 
       if (saveModel) {
         classifiers.foreach(clf => {
@@ -122,21 +147,61 @@ object RelationExtractionApp extends Logging {
     saveModel: Boolean = true,
     modelVersion: Int = 1
   ): Iterable[EvaluationResult] = {
+
     REClassifiers.useRelationBrownFeatures = useBrownFeatures
+    val baseModelDir = experimentFolder + "models" + File.separator
+
+    REClassifiers.relationTypeCoarseClassifier.modelDir = baseModelDir
+    REClassifiers.relationTypeFineClassifier.modelDir = baseModelDir
+
+    val brownFeatureString = if (useBrownFeatures) "brown" else ""
+    val decayRate = negativeSamplingRateDecay
 
     (0 until numFolds).flatMap({ fold =>
       setupDataModelForFold(docs, fold, populateRelations = true)
 
-      logger.info(s"Total number of relations = ${REDataModel.pairedRelations.getTrainingInstances.size}" +
-        s" / ${REDataModel.pairedRelations.getTestingInstances.size}")
-
       val classifiers = List(REClassifiers.relationTypeFineClassifier, REClassifiers.relationTypeCoarseClassifier)
 
       classifiers.foreach(clf => clf.forget())
-      ClassifierUtils.TrainClassifiers(5, classifiers)
+
+      val trainingRelations = REDataModel.pairedRelations.getTrainingInstances.toList
+      val testingRelations = REDataModel.pairedRelations.getTestingInstances.toList
+
+      var samplingRate = negativeSamplingRate
+
+      (0 until numTrainingIterations).foreach({ round =>
+
+        REDataModel.pairedRelations.clear()
+
+        // Negative Sampling
+        val sampledTraining = trainingRelations.filter({ rel =>
+          REDataModel.relationBinaryLabel.apply(rel) != REConstants.NO_RELATION || Random.nextDouble() < samplingRate
+        })
+
+        REDataModel.pairedRelations.populate(sampledTraining, train = true)
+        REDataModel.pairedRelations.populate(testingRelations, train = false)
+
+        logger.info(s"Total number of relations = ${REDataModel.pairedRelations.getTrainingInstances.size}" +
+          s" / ${REDataModel.pairedRelations.getTestingInstances.size}")
+
+        ClassifierUtils.TrainClassifiers(1, classifiers)
+
+        if (round % 5 == 0 && saveModel) {
+          val intermediatePath = s"RelationCV_${brownFeatureString}_v${modelVersion}_Fold_${fold}_$round"
+
+          classifiers.foreach(clf => {
+            clf.modelSuffix = intermediatePath
+            clf.save()
+          })
+
+          val intermediateEvaluation = REEvaluation.evaluationRelationTypeClassifier(fold)
+          intermediateEvaluation.foreach(_.writeToDisk(experimentFolder + intermediatePath + "_Results.txt"))
+        }
+
+        samplingRate *= decayRate
+      })
 
       if (saveModel) {
-        val brownFeatureString = if (useBrownFeatures) "brown" else ""
         classifiers.foreach({ clf =>
           clf.modelSuffix = s"RelationCV_${brownFeatureString}_v${modelVersion}_Fold_$fold"
           clf.save()

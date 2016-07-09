@@ -50,15 +50,15 @@ object REConstraints {
             fineLabelList.map((relationTypeFineClassifier on rel) is _).reduce(_ or _)
       }).reduce[FirstOrderConstraint](_ and _)
 
-      val secondDirection = relationHierarchy.map({
-        case (coarseLabel, fineLabelList) =>
-          fineLabelList.map({ fineLbl =>
-            ((relationTypeFineClassifier on rel) is fineLbl) ==>
-              ((relationTypeCoarseClassifier on rel) is coarseLabel)
-          }).reduce[FirstOrderConstraint](_ and _)
-      }).reduce[FirstOrderConstraint](_ and _)
+      //      val secondDirection = relationHierarchy.map({
+      //        case (coarseLabel, fineLabelList) =>
+      //          fineLabelList.map({ fineLbl =>
+      //            ((relationTypeFineClassifier on rel) is fineLbl) ==>
+      //              ((relationTypeCoarseClassifier on rel) is coarseLabel)
+      //          }).reduce[FirstOrderConstraint](_ and _)
+      //      }).reduce[FirstOrderConstraint](_ and _)
 
-      oneDirection and secondDirection
+      oneDirection
   }
 
   private val relationToFirstEntityMapping: Map[String, (List[String], List[String])] = Map(

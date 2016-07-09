@@ -78,20 +78,23 @@ object REClassifiers {
     PosBetweenSingleFeature,
     PM1aPM2Feature, M1PaM2PFeature, PPM1aPPM2Feature, PM1PaPM2PFeature, M1PPaM2PPFeature,
     //      PbeforeM1HeadFeature, PafterM1HeadFeature, PbeforeM2HeadFeature, PafterM2HeadFeature,
-    M1DepLabelFeature, M2DepLabelFeature
-  //      BagOfChunkTypesInBetweenFeature,
-  //      M1IsNationalityFeature, M2IsNationalityFeature,
-  //      PreModIsPartOfWikiTitleFeature,
-  //      PremodIsWordNetNounCollocationFeature,
-  //      HasCommonVerbSRLPredicateFeature,
-  //       FirstDepLabelInBetweenFeature, LastDepLabelInBetweenFeature,
-  //
-  //      	OnePrepInBetweenFeature, TwoPrepInBetweenFeature, MoreThanTwoPrepInBetweenFeature,
-  //      	SinglePrepStringInBetweenFeature, FirstPrepStringInBetweenFeature, LastPrepStringInBetweenFeature,
+    M1DepLabelFeature, M2DepLabelFeature,
+    //      BagOfChunkTypesInBetweenFeature,
+    //      M1IsNationalityFeature, M2IsNationalityFeature,
+    //      PreModIsPartOfWikiTitleFeature,
+    //      PremodIsWordNetNounCollocationFeature,
+    //      HasCommonVerbSRLPredicateFeature,
+    //       FirstDepLabelInBetweenFeature, LastDepLabelInBetweenFeature,
+    //
+    //      	OnePrepInBetweenFeature, TwoPrepInBetweenFeature, MoreThanTwoPrepInBetweenFeature,
+    //      	SinglePrepStringInBetweenFeature, FirstPrepStringInBetweenFeature, LastPrepStringInBetweenFeature,
 
-  //      FeaturesOfFirstPrep,
-  //      FeaturesOfSecondPrep,
-  //      FeaturesOfLastPrep,
+    //      FeaturesOfFirstPrep,
+    //      FeaturesOfSecondPrep,
+    //      FeaturesOfLastPrep,
+    OnlyPrepInDepPathFeature, ApposInDepPathFeature,
+    SmallerMentionIsPerTitleFeature,
+    HasCoveringMentionFeature
   )
 
   private val relationBrownClusterFeatures = List(
