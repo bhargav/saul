@@ -38,7 +38,11 @@ object RelationExtractionApp extends Logging {
   val negativeSamplingRate = 0.2
   val negativeSamplingRateDecay = 0.95
 
-  val experimentFolder = "/shared/experiments/mangipu2/relation_decay_50_iterations" + File.separator
+  val mentionFineGoldView = ViewNames.NER_ACE_FINE_EXTENT
+  val relationFineGoldView = ViewNames.RELATION_ACE_FINE_EXTENT
+  val relationCoarseGoldView = ViewNames.RELATION_ACE_COARSE_EXTENT
+
+  val experimentFolder = "/shared/experiments/mangipu2/relation_extent_decay_50_iterations" + File.separator
 
   /** Main method */
   def main(args: Array[String]): Unit = {
@@ -58,7 +62,7 @@ object RelationExtractionApp extends Logging {
     if (!outputDirectory.exists()) outputDirectory.mkdirs()
 
     val numFolds = 5
-    val numTrainingInstances = 50
+    val numTrainingInstances = 1
     val dataReader = new IterableToLBJavaParser(docs)
     val foldParser = new FoldParser(dataReader, numFolds, SplitPolicy.sequential, 0, false, docs.size)
 
@@ -275,15 +279,15 @@ object RelationExtractionApp extends Logging {
       val trainRelations = trainDocs.flatMap(textAnnotation => RESensors.populateRelations(
         textAnnotation,
         REConstants.TYPED_CANDIDATE_MENTION_VIEW,
-        ViewNames.RELATION_ACE_FINE_HEAD,
-        ViewNames.RELATION_ACE_COARSE_HEAD
+        relationFineGoldView,
+        relationCoarseGoldView
       ))
 
       val testRelations = testDocs.flatMap(textAnnotation => RESensors.populateRelations(
         textAnnotation,
         REConstants.TYPED_CANDIDATE_MENTION_VIEW,
-        ViewNames.RELATION_ACE_FINE_HEAD,
-        ViewNames.RELATION_ACE_COARSE_HEAD
+        relationFineGoldView,
+        relationCoarseGoldView
       ))
 
       REDataModel.pairedRelations.populate(trainRelations)
@@ -299,7 +303,7 @@ object RelationExtractionApp extends Logging {
     //    Also adds a CHUNK_PARSE and a SHALLOW_PARSE
     MentionDetector.labelDocMentionCandidates(tempDoc)
 
-    val goldTypedView = document.getView(ViewNames.NER_ACE_FINE_HEAD)
+    val goldTypedView = document.getView(mentionFineGoldView)
     val mentionView = document.getView(REConstants.CANDIDATE_MENTION_VIEW)
 
     val typedView: SpanLabelView = new SpanLabelView(
@@ -321,7 +325,17 @@ object RelationExtractionApp extends Logging {
         .map(cons => cons.getAttribute(ACEReader.EntityTypeAttribute) + ":" + cons.getLabel)
         .getOrElse(REConstants.NONE_MENTION)
 
-      typedView.addSpanLabel(c.getStartSpan, c.getEndSpan, label, 1.0)
+      val cons = new Constituent(label, typedView.getViewName, document, c.getStartSpan, c.getEndSpan)
+
+      if (c.hasAttribute(ACEReader.EntityHeadStartCharOffset)) {
+        cons.addAttribute("headStartTokenOffset", c.getAttribute(ACEReader.EntityHeadStartCharOffset))
+      }
+
+      if (c.hasAttribute(ACEReader.EntityHeadEndCharOffset)) {
+        cons.addAttribute("headEndTokenOffset", c.getAttribute(ACEReader.EntityHeadEndCharOffset))
+      }
+
+      typedView.addConstituent(cons)
 
       // Update book-keeping
       goldOverlap.foreach({ goldConstituent =>

@@ -108,6 +108,14 @@ object REClassifiers {
     SinglePrepStringInBetweenbc10Feature, FirstPrepStringInBetweenbc10Feature, LastPrepStringInBetweenbc10Feature
   )
 
+  val relationStructuralFeatures = List(
+    MatchNestedPatternFeature,
+    MatchPreModPatternFeature,
+    MatchPossesivePatternFeature,
+    MatchPrepositionPatternFeature,
+    MatchFormulaicPatternFeature
+  )
+
   object mentionTypeFineClassifier extends Learnable[Constituent](tokens) {
     def label = mentionFineLabel
     override def feature = using(mentionFeatures)
@@ -122,13 +130,13 @@ object REClassifiers {
 
   object relationTypeFineClassifier extends Learnable[SemanticRelation](pairedRelations) {
     def label = relationFineLabel
-    override def feature = if (useRelationBrownFeatures) using(relationFeatures ::: relationBrownClusterFeatures) else using(relationFeatures)
+    override def feature = if (useRelationBrownFeatures) using(relationFeatures ::: relationBrownClusterFeatures ::: relationStructuralFeatures) else using(relationFeatures)
     override lazy val classifier = new SparseNetworkLBP
   }
 
   object relationTypeCoarseClassifier extends Learnable[SemanticRelation](pairedRelations) {
     override def label = relationCoarseLabel
-    override def feature = if (useRelationBrownFeatures) using(relationFeatures ::: relationBrownClusterFeatures) else using(relationFeatures)
+    override def feature = if (useRelationBrownFeatures) using(relationFeatures ::: relationBrownClusterFeatures ::: relationStructuralFeatures) else using(relationFeatures)
     override lazy val classifier = new SparseNetworkLBP
   }
 }

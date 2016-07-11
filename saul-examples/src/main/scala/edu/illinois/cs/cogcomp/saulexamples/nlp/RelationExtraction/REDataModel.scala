@@ -853,4 +853,26 @@ object REDataModel extends DataModel {
   val SingleWordBetweenMentionsFeature = property(pairedRelations, "SingleWordBetweenMentions") {
     s: SemanticRelation => sanitizeFeature(RelationFeatures.SingleWordBetweenMentions(s))
   }
+
+  // Structural Features
+
+  val MatchNestedPatternFeature = property(pairedRelations, "MatchNestedPattern") {
+    s: SemanticRelation => Option(RelationStructuralFeatures.matchNestedPattern(s)).getOrElse("NO_PATTERN")
+  }
+
+  val MatchPreModPatternFeature = property(pairedRelations, "MatchPreModPattern") {
+    s: SemanticRelation => Option(RelationStructuralFeatures.matchPreModPattern(s)).getOrElse("NO_PATTERN")
+  }
+
+  val MatchPossesivePatternFeature = property(pairedRelations, "MatchPossesivePattern") {
+    s: SemanticRelation => Option(RelationStructuralFeatures.matchPossesivePattern(s)).getOrElse("NO_PATTERN")
+  }
+
+  val MatchPrepositionPatternFeature = property(pairedRelations, "MatchPrepositionPattern") {
+    s: SemanticRelation => Option(RelationStructuralFeatures.matchPrepositionPatterns(s)).getOrElse("NO_PATTERN")
+  }
+
+  val MatchFormulaicPatternFeature = property(pairedRelations, "MatchFormulaicPattern") {
+    s: SemanticRelation => Option(RelationStructuralFeatures.matchFormulaicPattern(s)).getOrElse("NO_PATTERN")
+  }
 }
