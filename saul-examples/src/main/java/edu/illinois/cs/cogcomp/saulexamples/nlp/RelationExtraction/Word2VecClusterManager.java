@@ -14,6 +14,10 @@ import java.util.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Loads and Serves Word2Vector Clusters trained on ACE2005 dataset and Wikipedia data.
+ * Adopted from Zefu Lu's codebase at: https://gitlab-beta.engr.illinois.edu/cogcomp/illinois_RE_SL
+ */
 public class Word2VecClusterManager {
     private String UNK = "UNK";
     private Map<String, double[]> map = new HashMap<>();

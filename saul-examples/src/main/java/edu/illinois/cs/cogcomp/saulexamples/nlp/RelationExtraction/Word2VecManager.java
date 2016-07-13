@@ -13,7 +13,11 @@ import org.slf4j.LoggerFactory;
 import java.io.*;
 import java.util.*;
 
-public class Word2VecManager {
+/**
+ * Loads and Serves Word2Vector Vectors trained on ACE2005 dataset and Wikipedia data.
+ * Adopted from Zefu Lu's codebase at: https://gitlab-beta.engr.illinois.edu/cogcomp/illinois_RE_SL
+ */
+public final class Word2VecManager {
     private String UNK = "UNK";
     private Map<String, double[]> map = new HashMap<>();
     private int vector_size;

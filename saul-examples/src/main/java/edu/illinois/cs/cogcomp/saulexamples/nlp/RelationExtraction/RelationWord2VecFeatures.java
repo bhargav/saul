@@ -23,8 +23,11 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
-// Class adapted from Zefulu's work
-// Attribution
+/**
+ * Word2Vec based features for [[SemanticRelation]] instances.
+ * NOTE: Vectors are trained on ACE2005 dataset and Wikipedia data.
+ * Adopted from Zefu Lu's codebase at: https://gitlab-beta.engr.illinois.edu/cogcomp/illinois_RE_SL
+ */
 public final class RelationWord2VecFeatures {
     public static Word2VecManager w2v = new Word2VecManager(REConfigurator.getResourceManager().getString(REConfigurator.WORD2VEC_VECTORS_PATH));
     public static Word2VecClusterManager w2vc = new Word2VecClusterManager(REConfigurator.getResourceManager().getString(REConfigurator.WORD2VEC_CLUSTERS_PATH));

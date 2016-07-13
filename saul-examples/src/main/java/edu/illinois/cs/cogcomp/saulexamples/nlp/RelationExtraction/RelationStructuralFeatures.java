@@ -25,6 +25,10 @@ import net.didion.jwnl.JWNLException;
 
 import java.util.*;
 
+/**
+ * Structural Featues for [[SemanticRelation]] instances.
+ * Adopted from Zefu Lu's codebase at: https://gitlab-beta.engr.illinois.edu/cogcomp/illinois_RE_SL
+ */
 public final class RelationStructuralFeatures {
     private static Set<String> frontPOSSequences;
     private static ListManager listManager = new ListManager();
