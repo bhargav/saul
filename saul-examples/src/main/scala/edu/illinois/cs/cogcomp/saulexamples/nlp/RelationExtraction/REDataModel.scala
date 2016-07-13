@@ -16,8 +16,6 @@ import edu.illinois.cs.cogcomp.saulexamples.nlp.RelationExtraction.REConstants.{
 
 import scala.collection.JavaConversions._
 
-/** Created by Bhargav Mangipudi on 1/28/16.
-  */
 object REDataModel extends DataModel {
 
   val documents = node[TextAnnotation]
@@ -875,4 +873,91 @@ object REDataModel extends DataModel {
   val MatchFormulaicPatternFeature = property(pairedRelations, "MatchFormulaicPattern") {
     s: SemanticRelation => Option(RelationStructuralFeatures.matchFormulaicPattern(s)).getOrElse("NO_PATTERN")
   }
+
+  // Word2Vec Features
+
+  val M1M2SubtypeAndCommonAncestorW2VFeature = property(pairedRelations, "M1M2SubtypeAndCommonAncestorW2V") {
+    s: SemanticRelation => Option(RelationWord2VecFeatures.M1M2SubtypeAndCommonAncestor(s).toList).getOrElse(List.empty)
+  }
+
+  val M1HWw2vFeature = property(pairedRelations, "M1HWw2v") {
+    s: SemanticRelation => Option(RelationWord2VecFeatures.M1HWw2v(s)).getOrElse(Array.empty).toList
+  }
+
+  val M2HWw2vFeature = property(pairedRelations, "M2HWw2v") {
+    s: SemanticRelation => Option(RelationWord2VecFeatures.M2HWw2v(s)).getOrElse(Array.empty).toList
+  }
+
+  val M1HWw2vcFeature = property(pairedRelations, "M1HWw2vc") {
+    s: SemanticRelation => Option(RelationWord2VecFeatures.M1HWw2vc(s)).getOrElse(Array.empty).toList
+  }
+
+  val M2HWw2vcFeature = property(pairedRelations, "M2HWw2vc") {
+    s: SemanticRelation => Option(RelationWord2VecFeatures.M2HWw2vc(s)).getOrElse(Array.empty).toList
+  }
+
+  val HWw2vSubtractionFeature = property(pairedRelations, "HWw2vSubtraction") {
+    s: SemanticRelation => Option(RelationWord2VecFeatures.HWw2vSubtraction(s)).getOrElse(Array.empty).toList
+  }
+
+  val WordBetweenSingleW2VFeature = property(pairedRelations, "WordBetweenSingleW2V") {
+    s: SemanticRelation => Option(RelationWord2VecFeatures.WordBetweenSingle(s)).getOrElse(Array.empty).toList
+  }
+
+  val WordBetweenSingleW2vcFeature = property(pairedRelations, "WordBetweenSingleW2vc") {
+    s: SemanticRelation => Option(RelationWord2VecFeatures.WordBetweenSingleW2vc(s)).getOrElse(Array.empty).toList
+  }
+
+  val WordBetweenFirstW2VFeature = property(pairedRelations, "WordBetweenFirstW2V") {
+    s: SemanticRelation => Option(RelationWord2VecFeatures.WordBetweenFirst(s)).getOrElse(Array.empty).toList
+  }
+
+  val WordBetweenFirstW2vcFeature = property(pairedRelations, "WordBetweenFirstW2vc") {
+    s: SemanticRelation => Option(RelationWord2VecFeatures.WordBetweenFirstW2vc(s)).getOrElse(Array.empty).toList
+  }
+
+  val WordBetweenLastW2VFeature = property(pairedRelations, "WordBetweenLastW2V") {
+    s: SemanticRelation => Option(RelationWord2VecFeatures.WordBetweenLast(s)).getOrElse(Array.empty).toList
+  }
+
+  val WordBetweenLastW2vcFeature = property(pairedRelations, "WordBetweenLastW2vc") {
+    s: SemanticRelation => Option(RelationWord2VecFeatures.WordBetweenLastW2vc(s)).getOrElse(Array.empty).toList
+  }
+
+  val M1DepParentWordW2vFeature = property(pairedRelations, "M1DepParentWordW2v") {
+    s: SemanticRelation => Option(RelationWord2VecFeatures.M1DepParentWordW2v(s)).getOrElse(Array.empty).toList
+  }
+
+  val M1DepParentWordW2vcFeature = property(pairedRelations, "M1DepParentWordW2vc") {
+    s: SemanticRelation => Option(RelationWord2VecFeatures.M1DepParentWordW2vc(s)).getOrElse(Array.empty).toList
+  }
+
+  val M2DepParentWordW2vFeature = property(pairedRelations, "M2DepParentWordW2v") {
+    s: SemanticRelation => Option(RelationWord2VecFeatures.M2DepParentWordW2v(s)).getOrElse(Array.empty).toList
+  }
+
+  val M2DepParentWordW2vcFeature = property(pairedRelations, "M2DepParentWordW2vc") {
+    s: SemanticRelation => Option(RelationWord2VecFeatures.M2DepParentWordW2vc(s)).getOrElse(Array.empty).toList
+  }
+
+  val WordAfterM1W2VFeature = property(pairedRelations, "WordAfterM1W2V") {
+    s: SemanticRelation => Option(RelationWord2VecFeatures.WordAfterM1(s)).getOrElse(Array.empty).toList
+  }
+
+  val WordAfterM1W2vcFeature = property(pairedRelations, "WordAfterM1W2vc") {
+    s: SemanticRelation => Option(RelationWord2VecFeatures.WordAfterM1W2vc(s)).getOrElse(Array.empty).toList
+  }
+
+  val WordBeforeM2W2VFeature = property(pairedRelations, "WordBeforeM2W2V") {
+    s: SemanticRelation => Option(RelationWord2VecFeatures.WordBeforeM2(s)).getOrElse(Array.empty).toList
+  }
+
+  val WordBeforeM2W2vcFeature = property(pairedRelations, "WordBeforeM2W2vc") {
+    s: SemanticRelation => Option(RelationWord2VecFeatures.WordBeforeM2W2vc(s)).getOrElse(Array.empty).toList
+  }
+
+  val SingleWordBetweenMentionsW2vFeature = property(pairedRelations, "SingleWordBetweenMentionsW2v") {
+    s: SemanticRelation => Option(RelationWord2VecFeatures.SingleWordBetweenMentionsW2v(s)).getOrElse(Array.empty).toList
+  }
 }
+

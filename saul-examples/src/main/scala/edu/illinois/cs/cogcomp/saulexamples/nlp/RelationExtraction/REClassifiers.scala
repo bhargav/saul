@@ -10,10 +10,9 @@ import edu.illinois.cs.cogcomp.core.datastructures.textannotation.Constituent
 import edu.illinois.cs.cogcomp.illinoisRE.data.SemanticRelation
 import edu.illinois.cs.cogcomp.lbjava.learn.SupportVectorMachine
 import edu.illinois.cs.cogcomp.saul.classifier.{ Learnable, SparseNetworkLBP }
+import edu.illinois.cs.cogcomp.saul.datamodel.property.Property
 import edu.illinois.cs.cogcomp.saulexamples.nlp.RelationExtraction.REDataModel._
 
-/** Created by Bhargav Mangipudi on 1/28/16.
-  */
 object REClassifiers {
   var useRelationBrownFeatures = false
 
@@ -43,7 +42,7 @@ object REClassifiers {
   //      NERLabelsFeature
   )
 
-  private val relationFeatures = List(
+  private val relationFeatures: List[Property[SemanticRelation]] = List(
     M1MostConfidentMainTypeFeature, M2MostConfidentMainTypeFeature,
     M1MostConfidentSubTypeFeature, M2MostConfidentSubTypeFeature,
     M1LevelMainTypeFeature, M2LevelMainTypeFeature,
@@ -97,10 +96,11 @@ object REClassifiers {
     HasCoveringMentionFeature
   )
 
-  private val relationBrownClusterFeatures = List(
+  private val relationBrownClusterFeatures: List[Property[SemanticRelation]] = List(
     BowM1bc10Feature, BowM2bc10Feature,
     HwM1bc10Feature, HwM2bc10Feature,
-    LhwM1bc10Feature, HwM1Rbc10Feature, LhwM2bc10Feature, HwM2Rbc10Feature, LLhwM1bc10Feature, LhwM1Rbc10Feature, HwM1RRbc10Feature, LLhwM2bc10Feature, LhwM2Rbc10Feature, HwM2RRbc10Feature,
+    LhwM1bc10Feature, HwM1Rbc10Feature, LhwM2bc10Feature, HwM2Rbc10Feature, LLhwM1bc10Feature, LhwM1Rbc10Feature,
+    HwM1RRbc10Feature, LLhwM2bc10Feature, LhwM2Rbc10Feature, HwM2RRbc10Feature,
     PM1aPM2bc10Feature, M1PaM2Pbc10Feature, PPM1aPPM2bc10Feature, PM1PaPM2Pbc10Feature, M1PPaM2PPbc10Feature,
     HwM1M2bc10Feature,
     WordBetweenSinglebc10Feature, WordBetweenFirstbc10Feature, WordBetweenLastbc10Feature,
@@ -108,12 +108,36 @@ object REClassifiers {
     SinglePrepStringInBetweenbc10Feature, FirstPrepStringInBetweenbc10Feature, LastPrepStringInBetweenbc10Feature
   )
 
-  val relationStructuralFeatures = List(
+  private val relationStructuralFeatures: List[Property[SemanticRelation]] = List(
     MatchNestedPatternFeature,
     MatchPreModPatternFeature,
     MatchPossesivePatternFeature,
     MatchPrepositionPatternFeature,
     MatchFormulaicPatternFeature
+  )
+
+  private val relationWord2VecFeatures: List[Property[SemanticRelation]] = List(
+    M1M2SubtypeAndCommonAncestorW2VFeature,
+    M1HWw2vFeature,
+    M2HWw2vFeature,
+    M1HWw2vcFeature,
+    M2HWw2vcFeature,
+    HWw2vSubtractionFeature,
+    WordBetweenSingleW2VFeature,
+    WordBetweenSingleW2vcFeature,
+    WordBetweenFirstW2VFeature,
+    WordBetweenFirstW2vcFeature,
+    WordBetweenLastW2VFeature,
+    WordBetweenLastW2vcFeature,
+    M1DepParentWordW2vFeature,
+    M1DepParentWordW2vcFeature,
+    M2DepParentWordW2vFeature,
+    M2DepParentWordW2vcFeature,
+    WordAfterM1W2VFeature,
+    WordAfterM1W2vcFeature,
+    WordBeforeM2W2VFeature,
+    WordBeforeM2W2vcFeature,
+    SingleWordBetweenMentionsW2vFeature
   )
 
   object mentionTypeFineClassifier extends Learnable[Constituent](tokens) {
@@ -130,13 +154,13 @@ object REClassifiers {
 
   object relationTypeFineClassifier extends Learnable[SemanticRelation](pairedRelations) {
     def label = relationFineLabel
-    override def feature = if (useRelationBrownFeatures) using(relationFeatures ::: relationBrownClusterFeatures ::: relationStructuralFeatures) else using(relationFeatures)
+    override def feature = if (useRelationBrownFeatures) using(relationFeatures ::: relationBrownClusterFeatures ::: relationStructuralFeatures ::: relationWord2VecFeatures) else using(relationFeatures)
     override lazy val classifier = new SparseNetworkLBP
   }
 
   object relationTypeCoarseClassifier extends Learnable[SemanticRelation](pairedRelations) {
     override def label = relationCoarseLabel
-    override def feature = if (useRelationBrownFeatures) using(relationFeatures ::: relationBrownClusterFeatures ::: relationStructuralFeatures) else using(relationFeatures)
+    override def feature = if (useRelationBrownFeatures) using(relationFeatures ::: relationBrownClusterFeatures ::: relationStructuralFeatures ::: relationWord2VecFeatures) else using(relationFeatures)
     override lazy val classifier = new SparseNetworkLBP
   }
 }

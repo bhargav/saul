@@ -42,7 +42,7 @@ object RelationExtractionApp extends Logging {
   val relationFineGoldView = ViewNames.RELATION_ACE_FINE_EXTENT
   val relationCoarseGoldView = ViewNames.RELATION_ACE_COARSE_EXTENT
 
-  val experimentFolder = "/shared/experiments/mangipu2/relation_extent_decay_50_iterations" + File.separator
+  val experimentFolder = "/shared/experiments/mangipu2/relation_word2vec_brown_extent_decay_50_iterations" + File.separator
 
   /** Main method */
   def main(args: Array[String]): Unit = {
@@ -62,7 +62,7 @@ object RelationExtractionApp extends Logging {
     if (!outputDirectory.exists()) outputDirectory.mkdirs()
 
     val numFolds = 5
-    val numTrainingInstances = 1
+    val numTrainingInstances = 50
     val dataReader = new IterableToLBJavaParser(docs)
     val foldParser = new FoldParser(dataReader, numFolds, SplitPolicy.sequential, 0, false, docs.size)
 

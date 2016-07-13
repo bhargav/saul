@@ -12,8 +12,6 @@ import edu.illinois.cs.cogcomp.saul.classifier.ConstrainedClassifier
 import edu.illinois.cs.cogcomp.saulexamples.nlp.RelationExtraction.REClassifiers._
 import edu.illinois.cs.cogcomp.saul.constraint.ConstraintTypeConversion._
 
-/** Created by Bhargav Mangipudi on 2/21/16.
-  */
 object REConstraints {
 
   //      Map for tracking the Coarse-Fine relationship hierarchy

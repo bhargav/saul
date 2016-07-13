@@ -10,7 +10,9 @@ import edu.illinois.cs.cogcomp.core.datastructures.Pair;
 import edu.illinois.cs.cogcomp.core.datastructures.ViewNames;
 import edu.illinois.cs.cogcomp.core.datastructures.textannotation.Constituent;
 import edu.illinois.cs.cogcomp.core.datastructures.textannotation.SpanLabelView;
+
 import edu.illinois.cs.cogcomp.edison.utilities.WordNetHelper;
+
 import edu.illinois.cs.cogcomp.illinoisRE.common.ListManager;
 import edu.illinois.cs.cogcomp.illinoisRE.common.ResourceManager;
 import edu.illinois.cs.cogcomp.illinoisRE.data.Mention;
