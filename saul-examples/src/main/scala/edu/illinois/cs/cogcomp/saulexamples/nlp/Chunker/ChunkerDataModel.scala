@@ -8,6 +8,8 @@ package edu.illinois.cs.cogcomp.saulexamples.nlp.Chunker
 
 import edu.illinois.cs.cogcomp.core.datastructures.ViewNames
 import edu.illinois.cs.cogcomp.core.datastructures.textannotation.{ Constituent, Sentence }
+import edu.illinois.cs.cogcomp.edison.features.ContextFeatureExtractor
+import edu.illinois.cs.cogcomp.edison.features.factory.WordFeatureExtractorFactory
 import edu.illinois.cs.cogcomp.edison.features.lrec.{ Affixes, POSWindow, WordTypeInformation }
 import edu.illinois.cs.cogcomp.saul.datamodel.DataModel
 
@@ -45,5 +47,29 @@ object ChunkerDataModel extends DataModel {
     posWindowExtractor.getFeatures(token)
       .map(_.getName)
       .toList
+  }
+
+  // Capitalization features
+  private val capitalizationExtractor = new ContextFeatureExtractor(2, true, true,
+    WordFeatureExtractorFactory.capitalization)
+  val capitalizationWindowProperty = property(tokens, "Capitalization") { token: Constituent =>
+    capitalizationExtractor.getFeatures(token)
+      .map(_.getName)
+      .toList
+  }
+
+  // Filter to restrict window to current sentence's tokens only.
+  val previousTagsFilter = Seq({ token: Constituent => tokens(token) ~> -sentenceToTokens })
+  val previousTags = property(tokens, "PreviousTags", cache = true) { token: Constituent =>
+    tokens.getWithWindow(token, -2, -1, previousTagsFilter)
+      .flatten
+      .map({ previousCons: Constituent =>
+        // Use Label while training and prediction while testing.
+        if (ChunkerClassifiers.ChunkerClassifier.isTraining) {
+          chunkLabel(previousCons)
+        } else {
+          ChunkerClassifiers.ChunkerClassifier(previousCons)
+        }
+      })
   }
 }

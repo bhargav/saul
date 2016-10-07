@@ -9,13 +9,11 @@ package edu.illinois.cs.cogcomp.saulexamples.nlp.Chunker
 import edu.illinois.cs.cogcomp.annotation.BasicTextAnnotationBuilder
 import edu.illinois.cs.cogcomp.core.datastructures.ViewNames
 import edu.illinois.cs.cogcomp.core.datastructures.textannotation._
-import edu.illinois.cs.cogcomp.nlp.tokenizer.StatefulTokenizer
-import edu.illinois.cs.cogcomp.nlp.utility.TokenizerTextAnnotationBuilder
-import edu.illinois.cs.cogcomp.saulexamples.nlp.POSTagger.POSTaggerApp
+import edu.illinois.cs.cogcomp.saul.classifier.ClassifierUtils
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable
-import scala.io.{ Source, StdIn }
+import scala.io.Source
 
 object ChunkerApp extends App {
   val trainFile = "../data/conll2000chunking/train.txt"
@@ -92,29 +90,5 @@ object ChunkerApp extends App {
 
   ChunkerClassifiers.ChunkerClassifier.learn(10)
   println(ChunkerClassifiers.ChunkerClassifier.test())
-
-  /** Interactive model to annotate input sentences with Pre-trained models
-    */
-  def interactiveWithPretrainedModels(): Unit = {
-    val posAnnotator = POSTaggerApp.getPretrainedAnnotator(ViewNames.POS)
-    val taBuilder = new TokenizerTextAnnotationBuilder(new StatefulTokenizer())
-
-    while (true) {
-      println("Enter a sentence to annotate (or Press Enter to exit)")
-      val input = StdIn.readLine()
-
-      input match {
-        case sentence: String if sentence.trim.nonEmpty =>
-          // Create a Text Annotation with the current input sentence.
-          val ta = taBuilder.createTextAnnotation(sentence.trim)
-          posAnnotator.addView(ta)
-
-          val tokens = ta.getView(ViewNames.TOKENS).getConstituents
-          ChunkerDataModel.tokens.populate(tokens)
-
-          println("Tokens: " + ta.getView(ViewNames.TOKENS))
-        case _ => return
-      }
-    }
-  }
+  ClassifierUtils.SaveClassifiers(ChunkerClassifiers.ChunkerClassifier)
 }
