@@ -12,7 +12,7 @@ import edu.illinois.cs.cogcomp.lbjava.infer.{ FirstOrderConstant, FirstOrderCons
 import edu.illinois.cs.cogcomp.saul.classifier.ConstrainedClassifier
 import edu.illinois.cs.cogcomp.saul.constraint.ConstraintTypeConversion._
 import edu.illinois.cs.cogcomp.saulexamples.data.XuPalmerCandidateGenerator
-import edu.illinois.cs.cogcomp.saulexamples.nlp.SemanticRoleLabeling.SRLApps.srlDataModelObject._
+import edu.illinois.cs.cogcomp.saulexamples.nlp.SemanticRoleLabeling.PopulateSRLDataModel.srlDataModelObject._
 import edu.illinois.cs.cogcomp.saulexamples.nlp.SemanticRoleLabeling.SRLClassifiers.{ argumentTypeLearner, argumentXuIdentifierGivenApredicate, predicateClassifier }
 
 import scala.collection.JavaConversions._

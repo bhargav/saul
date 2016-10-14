@@ -74,10 +74,10 @@ object SRLApps extends App with Logging {
 
   logger.info("population starts.")
 
-  // Here, the data is loaded into the graph
-  val srlDataModelObject = PopulateSRLDataModel(testOnly = runningMode, properties)
+  PopulateSRLDataModel.setResourceManager(properties)
 
-  import srlDataModelObject._
+  // Here, the data is loaded into the graph
+  import PopulateSRLDataModel.srlDataModelObject._
 
   logger.info("all relations number after population:" + relations().size)
   logger.info("all sentences number after population:" + sentences().size)

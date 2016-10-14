@@ -14,7 +14,7 @@ import edu.illinois.cs.cogcomp.saul.datamodel.property.Property
 /** Created by Parisa on 12/30/15.
   */
 object SRLClassifiers {
-  import SRLApps.srlDataModelObject._
+  import PopulateSRLDataModel.srlDataModelObject._
 
   //TODO This needs to be overriden by the user; change it to be dynamic
   val parameters = new SparseAveragedPerceptron.Parameters()

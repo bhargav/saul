@@ -28,8 +28,25 @@ import scala.collection.JavaConversions._
 /** Created by Parisa on 1/17/16.
   */
 object PopulateSRLDataModel extends Logging {
-  def apply(testOnly: Boolean, rm: ResourceManager): SRLMultiGraphDataModel = {
+  private var resourceManager: Option[ResourceManager] = None
 
+  /** Call this method before importing the `srlDataModel` to overload resource manager.
+    *
+    * Note: Calling this method after accessing the lazy `srlDataModel` would not have any impact.
+    *
+    * @param resourceManager Overloaded [[ResourceManager]] instance for the experiment.
+    */
+  def setResourceManager(resourceManager: ResourceManager) = {
+    PopulateSRLDataModel.resourceManager = Some(resourceManager)
+  }
+
+  /** All SRL Classifiers are defined based on this DataModel instance
+    * by import this in all files.
+    */
+  lazy val srlDataModelObject = PopulateSRLDataModel(resourceManager.getOrElse(new SRLConfigurator().getDefaultConfig))
+
+  private def apply(rm: ResourceManager): SRLMultiGraphDataModel = {
+    val testOnly = rm.getBoolean(SRLConfigurator.RUN_MODE)
     val useGoldPredicate = rm.getBoolean(SRLConfigurator.SRL_GOLD_PREDICATES)
     val useGoldArgBoundaries = rm.getBoolean(SRLConfigurator.SRL_GOLD_ARG_BOUNDARIES)
 
