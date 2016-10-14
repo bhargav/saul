@@ -14,19 +14,24 @@ import edu.illinois.cs.cogcomp.saul.util.Logging
 import edu.illinois.cs.cogcomp.saulexamples.nlp.SemanticRoleLabeling.SRLClassifiers._
 import edu.illinois.cs.cogcomp.saulexamples.nlp.SemanticRoleLabeling.SRLConstrainedClassifiers.argTypeConstraintClassifier
 
-object SRLApps extends Logging {
+/** SRL Application to train and test the classifiers.
+  *
+  * Note: Application takes an option argument to load custom configuration.
+  */
+object SRLApps extends App with Logging {
   import SRLConfigurator._
 
   val properties: ResourceManager = {
     // Load the default properties if the user hasn't entered a file as an argument
-    //if (args.length == 0) {
-    logger.info("Loading default configuration parameters")
-    new SRLConfigurator().getDefaultConfig
-    //} else {
-    // logger.info("Loading parameters from {}", args(0))
-    //new SRLConfigurator().getConfig(new ResourceManager(args(0)))
-    // }
+    if (args.length == 0) {
+      logger.info("Loading default configuration parameters")
+      new SRLConfigurator().getDefaultConfig
+    } else {
+      logger.info(s"Loading parameters from ${args(0)}")
+      new SRLConfigurator().getConfig(new ResourceManager(args(0)))
+    }
   }
+
   val modelDir = properties.getString(MODELS_DIR) +
     File.separator + properties.getString(SRLConfigurator.SRL_MODEL_DIR) + File.separator
   val srlPredictionsFile = properties.getString(SRLConfigurator.SRL_OUTPUT_FILE)
@@ -47,25 +52,30 @@ object SRLApps extends Logging {
 
   val modelJars = properties.getString(SRLConfigurator.SRL_JAR_MODEL_PATH)
 
-  val expName: String = {
-    if (trainingMode.equals("other"))
-      if (trainArgType && useGoldBoundaries && useGoldPredicate && trainingMode.equals("other")) "aTr"
+  val experimentName: String = {
+    if (trainingMode.equals("other")) {
+      if (trainArgType && useGoldBoundaries && useGoldPredicate) "aTr"
       else if (trainArgIdentifier && useGoldPredicate && useGoldPredicate) "bTr"
       else if (trainArgType && useGoldPredicate && !useGoldBoundaries) "cTr"
       else if (trainPredicates && useGoldPredicate) "dTr"
       else if (trainArgIdentifier && !useGoldPredicate) "eTr"
       else if (trainArgType && !useGoldPredicate) "fTr"
       else ""
-    else if (trainingMode.equals("pipeline")) "pTr"
+    } else if (trainingMode.equals("pipeline")) "pTr"
     else if (trainingMode.equals("joint")) "jTr"
     else ""
   }
 
-  val startTime = System.currentTimeMillis()
+  // Check if Training experiment is configured properly before populating data
+  if (!runningMode) {
+    println(s"Running experiment = $experimentName")
+    require(experimentName.nonEmpty, "Experiment is not configured properly.")
+  }
+
   logger.info("population starts.")
 
   // Here, the data is loaded into the graph
-  val srlDataModelObject = PopulateSRLDataModel(testOnly = runningMode, useGoldPredicate, useGoldBoundaries)
+  val srlDataModelObject = PopulateSRLDataModel(testOnly = runningMode, properties)
 
   import srlDataModelObject._
 
@@ -74,23 +84,34 @@ object SRLApps extends Logging {
   logger.info("all predicates number after population:" + predicates().size)
   logger.info("all arguments number after population:" + arguments().size)
   logger.info("all tokens number after population:" + tokens().size)
-}
 
-object RunningApps extends App with Logging {
-  import SRLApps._
-  import SRLApps.srlDataModelObject._
-  // TRAINING
   if (!runningMode) {
-    expName match {
+    // TRAINING
+    trainSRL(experimentName)
+  } else {
+    // TESTING
+    testSRL(testWithPipeline, testWithConstraints)
+  }
+
+  /** Train the Semantic Role Labeling classifiers.
+    */
+  def trainSRL(experimentName: String): Unit = {
+    // Sanity check before training
+    require(
+      (trainPredicates ^ trainArgIdentifier ^ trainArgType) & !(trainPredicates & trainArgIdentifier & trainArgType),
+      "Training modes should be mutually exclusive."
+    )
+
+    experimentName match {
 
       case "aTr" =>
-        argumentTypeLearner.modelDir = modelDir + expName
+        argumentTypeLearner.modelDir = modelDir + experimentName
         argumentTypeLearner.learn(100, relations.getTrainingInstances)
         argumentTypeLearner.test()
         argumentTypeLearner.save()
 
       case "bTr" =>
-        argumentXuIdentifierGivenApredicate.modelDir = modelDir + expName
+        argumentXuIdentifierGivenApredicate.modelDir = modelDir + experimentName
         logger.info("Training argument identifier")
         argumentXuIdentifierGivenApredicate.learn(100)
         logger.info("isArgument test results:")
@@ -98,7 +119,7 @@ object RunningApps extends App with Logging {
         argumentXuIdentifierGivenApredicate.save()
 
       case "cTr" =>
-        argumentTypeLearner.modelDir = modelDir + expName
+        argumentTypeLearner.modelDir = modelDir + experimentName
         logger.info("Training argument classifier")
         argumentTypeLearner.learn(100)
         argumentTypeLearner.save()
@@ -106,7 +127,7 @@ object RunningApps extends App with Logging {
         argumentTypeLearner.test(relations.getTestingInstances, typeArgumentPrediction, argumentLabelGold, "candidate")
 
       case "dTr" =>
-        predicateClassifier.modelDir = modelDir + expName
+        predicateClassifier.modelDir = modelDir + experimentName
         logger.info("Training predicate identifier...")
         predicateClassifier.learn(100, predicates.getTrainingInstances)
         predicateClassifier.save()
@@ -114,7 +135,7 @@ object RunningApps extends App with Logging {
         predicateClassifier.test(predicates.getTestingInstances)
 
       case "eTr" =>
-        argumentXuIdentifierGivenApredicate.modelDir = modelDir + expName
+        argumentXuIdentifierGivenApredicate.modelDir = modelDir + experimentName
         logger.info("Training argument identifier...")
         argumentXuIdentifierGivenApredicate.learn(100)
         logger.info("isArgument test results:")
@@ -122,7 +143,7 @@ object RunningApps extends App with Logging {
         argumentXuIdentifierGivenApredicate.save()
 
       case "fTr" =>
-        argumentTypeLearner.modelDir = modelDir + expName
+        argumentTypeLearner.modelDir = modelDir + experimentName
         logger.info("Training argument classifier...")
         argumentTypeLearner.learn(100)
         logger.info("argument classifier test results:")
@@ -145,7 +166,7 @@ object RunningApps extends App with Logging {
         )
 
       case "jTr" =>
-        argumentTypeLearner.modelDir = modelDir + expName
+        argumentTypeLearner.modelDir = modelDir + experimentName
         val outputFile = modelDir + srlPredictionsFile
         logger.info("Global training... ")
         JointTrainSparseNetwork(sentences, argTypeConstraintClassifier :: Nil, 100, true)
@@ -154,8 +175,12 @@ object RunningApps extends App with Logging {
     }
   }
 
-  // TESTING
-  if (runningMode) {
+  /** Test the Semantic Role Labeling classifiers.
+    *
+    * @param testWithPipeline Test SRL in the Pipeline mode.
+    * @param testWithConstraints Use Constraints for inference.
+    */
+  def testSRL(testWithPipeline: Boolean, testWithConstraints: Boolean): Unit = {
     (testWithPipeline, testWithConstraints) match {
 
       case (true, true) =>

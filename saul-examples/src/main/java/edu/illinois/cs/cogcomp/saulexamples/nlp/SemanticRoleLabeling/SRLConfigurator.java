@@ -22,6 +22,9 @@ public class SRLConfigurator extends Configurator {
     public static final Property TREEBANK_HOME = new Property("treebankHome", "../saul-examples/src/test/resources/SRLToy/treebank");
     public static final Property PROPBANK_HOME = new Property("propbankHome","../saul-examples/src/test/resources/SRLToy/propbank");
 
+    public static final Property TRAIN_SECTION_FROM = new Property("trainSectionFrom", "02");
+    public static final Property TRAIN_SECTION_TO = new Property("trainSectionTo", "02");
+
     public static final Property TEST_SECTION = new Property("testSection","00");
 
 	public static final Property MODELS_DIR = new Property("modelsDir", "../models");
@@ -65,7 +68,7 @@ public class SRLConfigurator extends Configurator {
     public static final Property SRL_TRAIN_ARG_IDENTIFIERS = new Property("srlArgIdentifier", Configurator.FALSE);
 
     // Should we train an argument type classifier given the XuPalmer argument candidates
-    public static final Property SRL_TRAIN_ARG_TYPE = new Property("srlArgIdentifier", Configurator.FALSE);
+    public static final Property SRL_TRAIN_ARG_TYPE = new Property("srlArgType", Configurator.FALSE);
 
     @Override
     public ResourceManager getDefaultConfig() {

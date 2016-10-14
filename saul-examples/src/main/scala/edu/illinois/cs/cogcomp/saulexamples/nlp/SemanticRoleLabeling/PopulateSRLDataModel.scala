@@ -28,12 +28,11 @@ import scala.collection.JavaConversions._
 /** Created by Parisa on 1/17/16.
   */
 object PopulateSRLDataModel extends Logging {
-  def apply[T <: AnyRef](
-    testOnly: Boolean = false,
-    useGoldPredicate: Boolean = false,
-    useGoldArgBoundaries: Boolean = false,
-    rm: ResourceManager = new SRLConfigurator().getDefaultConfig
-  ): SRLMultiGraphDataModel = {
+  def apply(testOnly: Boolean, rm: ResourceManager): SRLMultiGraphDataModel = {
+
+    val useGoldPredicate = rm.getBoolean(SRLConfigurator.SRL_GOLD_PREDICATES)
+    val useGoldArgBoundaries = rm.getBoolean(SRLConfigurator.SRL_GOLD_ARG_BOUNDARIES)
+
     val frameManager: SRLFrameManager = new SRLFrameManager(rm.getString(SRLConfigurator.PROPBANK_HOME.key))
     val useCurator = rm.getBoolean(SRLConfigurator.USE_CURATOR)
     val parseViewName = rm.getString(SRLConfigurator.SRL_PARSE_VIEW)
@@ -86,8 +85,8 @@ object PopulateSRLDataModel extends Logging {
       logger.debug(s"Number of $readerType data arguments: $numArguments")
     }
 
-    val trainingFromSection = 2
-    val trainingToSection = 2
+    val trainingFromSection = rm.getInt(SRLConfigurator.TRAIN_SECTION_FROM)
+    val trainingToSection = rm.getInt(SRLConfigurator.TRAIN_SECTION_TO)
     var gr: SRLMultiGraphDataModel = null
     if (!testOnly) {
       logger.info(s"Reading training data from sections $trainingFromSection to $trainingToSection")
