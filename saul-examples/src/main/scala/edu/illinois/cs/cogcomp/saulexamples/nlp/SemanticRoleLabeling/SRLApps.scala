@@ -15,6 +15,7 @@ import edu.illinois.cs.cogcomp.saulexamples.nlp.SemanticRoleLabeling.SRLClassifi
 import edu.illinois.cs.cogcomp.saulexamples.nlp.SemanticRoleLabeling.SRLConstrainedClassifiers.ArgTypeConstrainedClassifier
 
 import java.io.File
+import java.time.Duration
 
 object SRLscalaConfigurator {
 
@@ -91,11 +92,13 @@ object SRLApps extends Logging {
     else ""
   }
 
-  val startTime = System.currentTimeMillis()
+  val startTime = System.nanoTime()
   logger.info("population starts.")
 
   // Here, the data is loaded into the graph
   val srlDataModelObject = PopulateSRLDataModel(testOnly = TEST_MODE, SRL_GOLD_PREDICATES, SRL_GOLD_ARG_BOUNDARIES)
+
+  logger.debug(s"DataModel population time = ${Duration.ofNanos(System.nanoTime() - startTime)}")
 
   import srlDataModelObject._
 

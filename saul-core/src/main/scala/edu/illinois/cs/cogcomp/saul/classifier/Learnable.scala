@@ -8,6 +8,7 @@ package edu.illinois.cs.cogcomp.saul.classifier
 
 import java.io.File
 import java.net.URL
+import java.time.Duration
 
 import edu.illinois.cs.cogcomp.core.datastructures.vectors.ExceptionlessOutputStream
 import edu.illinois.cs.cogcomp.core.io.IOUtils
@@ -230,14 +231,21 @@ abstract class Learnable[T <: AnyRef](val node: Node[T], val parameters: Paramet
 
     isTraining = true
 
+    val startTime = System.nanoTime()
+    var lapTime = System.nanoTime()
+
     (iteration to 1 by -1).foreach(remainingIteration => {
       if (remainingIteration % 10 == 0)
         logger.info(s"Training: $remainingIteration iterations remain.")
 
       node.clearPropertyCache()
       data.foreach(classifier.learn)
+      logger.debug(s"Iteration ${iteration - remainingIteration + 1} train time = " +
+        s"${Duration.ofNanos(System.nanoTime() - lapTime)}")
+      lapTime = System.nanoTime()
     })
 
+    logger.debug(s"Total training time = ${Duration.ofNanos(System.nanoTime() - startTime)}")
     classifier.doneLearning()
     isTraining = false
   }

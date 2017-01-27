@@ -34,7 +34,7 @@
         </encoder>
     </appender>
 
-    <root level="${logback_rootLevel:-INFO}">
+    <root level="${logback_rootLevel:-DEBUG}">
         <appender-ref ref="FILE" />
         <appender-ref ref="STDOUT" />
     </root>
