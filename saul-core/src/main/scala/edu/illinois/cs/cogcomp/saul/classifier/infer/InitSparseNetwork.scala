@@ -7,11 +7,8 @@
 package edu.illinois.cs.cogcomp.saul.classifier.infer
 
 import edu.illinois.cs.cogcomp.lbjava.learn.{ LinearThresholdUnit, SparseNetworkLearner }
-import edu.illinois.cs.cogcomp.saul.classifier.ConstrainedClassifier
 import edu.illinois.cs.cogcomp.saul.datamodel.node.Node
 
-/** Created by Parisa on 9/18/16.
-  */
 object InitSparseNetwork {
   def apply[HEAD <: AnyRef](node: Node[HEAD], cClassifier: ConstrainedClassifier[_, HEAD]) = {
     val allHeads = node.getTrainingInstances

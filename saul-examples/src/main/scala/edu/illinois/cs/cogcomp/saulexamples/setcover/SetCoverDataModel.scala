@@ -6,10 +6,11 @@
   */
 package edu.illinois.cs.cogcomp.saulexamples.setcover
 
-import edu.illinois.cs.cogcomp.infer.ilp.OJalgoHook
-import edu.illinois.cs.cogcomp.saul.classifier.ConstrainedClassifier
+import edu.illinois.cs.cogcomp.lbjava.learn.Learner
+import edu.illinois.cs.cogcomp.saul.classifier.infer.Constraint._
+import edu.illinois.cs.cogcomp.saul.classifier.infer.{ ConstrainedClassifier, OJAlgo }
 import edu.illinois.cs.cogcomp.saul.datamodel.DataModel
-import edu.illinois.cs.cogcomp.saul.constraint.ConstraintTypeConversion._
+import edu.illinois.cs.cogcomp.saul.lbjrelated.LBJLearnerEquivalent
 
 object SetCoverSolverDataModel extends DataModel {
 
@@ -22,34 +23,30 @@ object SetCoverSolverDataModel extends DataModel {
   cityContainsNeighborhoods.populateWith((c, n) => c == n.getParentCity)
 
   /** definition of the constraints */
-  val containStation = new ContainsStation()
+  val containStation: LBJLearnerEquivalent = new LBJLearnerEquivalent {
+    override val classifier: Learner = new ContainsStation()
+  }
 
   def atLeastANeighborOfNeighborhoodIsCovered = { n: Neighborhood =>
-    n.getNeighbors._exists { neighbor: Neighborhood => containStation on neighbor isTrue }
+    n.getNeighbors.Exists { neighbor: Neighborhood => containStation on neighbor isTrue }
   }
 
   def neighborhoodContainsStation = { n: Neighborhood =>
-    containStation on n isTrue
+    (containStation on n) isTrue
   }
 
-  def allCityNeiborhoodsAreCovered = { x: City =>
-    x.getNeighborhoods._forall { n: Neighborhood =>
+  def allCityNeighborhoodsAreCovered = { x: City =>
+    x.getNeighborhoods.ForAll { n: Neighborhood =>
       neighborhoodContainsStation(n) or atLeastANeighborOfNeighborhoodIsCovered(n)
     }
   }
 
-  def someCityNeiborhoodsAreCovered = { x: City =>
-    x.getNeighborhoods._atleast(2) { n: Neighborhood =>
-      neighborhoodContainsStation(n) //or atLeastANeighborOfNeighborhoodIsCovered(n)
-    }
-  }
-
-  val containsStationConstraint = ConstrainedClassifier.constraint[City] { x: City => allCityNeiborhoodsAreCovered(x) }
+  def containsStationConstraint = SetCoverSolverDataModel.cities.ForAll { x: City => allCityNeighborhoodsAreCovered(x) }
 }
 
-import SetCoverSolverDataModel._
-object ContainsStationConstraint extends ConstrainedClassifier[Neighborhood, City](new ContainsStation()) {
-  override val pathToHead = Some(-cityContainsNeighborhoods)
-  override def subjectTo = containsStationConstraint
-  override val solver = new OJalgoHook
+object ConstrainedContainsStation extends ConstrainedClassifier[Neighborhood, City] {
+  override lazy val onClassifier = SetCoverSolverDataModel.containStation
+  override def pathToHead = Some(-SetCoverSolverDataModel.cityContainsNeighborhoods)
+  override def subjectTo = Some(SetCoverSolverDataModel.containsStationConstraint)
+  override def solverType = OJAlgo
 }

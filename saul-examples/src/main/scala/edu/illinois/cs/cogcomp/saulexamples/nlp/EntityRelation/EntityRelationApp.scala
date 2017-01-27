@@ -9,7 +9,7 @@ package edu.illinois.cs.cogcomp.saulexamples.nlp.EntityRelation
 import edu.illinois.cs.cogcomp.core.datastructures.ViewNames
 import edu.illinois.cs.cogcomp.nlp.tokenizer.StatefulTokenizer
 import edu.illinois.cs.cogcomp.nlp.utility.TokenizerTextAnnotationBuilder
-import edu.illinois.cs.cogcomp.saul.classifier.{ ClassifierUtils, JointTrainSparseNetwork }
+import edu.illinois.cs.cogcomp.saul.classifier.{ JointTrainSparseNetwork, ClassifierUtils }
 import edu.illinois.cs.cogcomp.saul.util.Logging
 import edu.illinois.cs.cogcomp.saulexamples.EntityMentionRelation.datastruct.ConllRelation
 import edu.illinois.cs.cogcomp.saulexamples.nlp.EntityRelation.EntityRelationClassifiers._
@@ -25,7 +25,7 @@ object EntityRelationApp extends Logging {
 
   def main(args: Array[String]): Unit = {
     /** Choose the experiment you're interested in by changing the following line */
-    val testType = ERExperimentType.InteractiveMode
+    val testType = ERExperimentType.LPlusI
 
     testType match {
       case ERExperimentType.IndependentClassifiers => trainIndependentClassifiers()
@@ -105,9 +105,9 @@ object EntityRelationApp extends Logging {
     ClassifierUtils.LoadClassifier(jarModelPath, PersonClassifier, OrganizationClassifier, LocationClassifier,
       WorksForClassifier, LivesInClassifier, LocatedInClassifier, OrgBasedInClassifier)
 
-    // Test using constrained classifiers
+    //     Test using constrained classifiers
     ClassifierUtils.TestClassifiers(PerConstrainedClassifier, OrgConstrainedClassifier, LocConstrainedClassifier,
-      WorksFor_PerOrg_ConstrainedClassifier, LivesIn_PerOrg_relationConstrainedClassifier)
+      WorksForRelationConstrainedClassifier, LivesInRelationConstrainedClassifier)
   }
 
   /** here we meanwhile training classifiers, we use global inference, in order to overcome the poor local
@@ -129,8 +129,8 @@ object EntityRelationApp extends Logging {
     JointTrainSparseNetwork.train[ConllRelation](
       pairs,
       PerConstrainedClassifier :: OrgConstrainedClassifier :: LocConstrainedClassifier ::
-        WorksFor_PerOrg_ConstrainedClassifier :: LivesIn_PerOrg_relationConstrainedClassifier :: Nil,
-      jointTrainIteration, true
+        WorksForRelationConstrainedClassifier :: LivesInRelationConstrainedClassifier :: Nil,
+      jointTrainIteration, init = true
     )
 
     // TODO: merge the following two tests
@@ -138,8 +138,8 @@ object EntityRelationApp extends Logging {
       (testTokens, LocConstrainedClassifier))
 
     ClassifierUtils.TestClassifiers(
-      (testRels, WorksFor_PerOrg_ConstrainedClassifier),
-      (testRels, LivesIn_PerOrg_relationConstrainedClassifier)
+      (testRels, WorksForRelationConstrainedClassifier),
+      (testRels, LivesInRelationConstrainedClassifier)
     )
   }
 

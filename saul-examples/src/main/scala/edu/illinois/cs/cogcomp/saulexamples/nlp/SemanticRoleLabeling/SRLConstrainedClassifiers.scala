@@ -7,32 +7,29 @@
 package edu.illinois.cs.cogcomp.saulexamples.nlp.SemanticRoleLabeling
 
 import edu.illinois.cs.cogcomp.core.datastructures.textannotation.{ Relation, TextAnnotation }
-import edu.illinois.cs.cogcomp.infer.ilp.OJalgoHook
-import edu.illinois.cs.cogcomp.saul.classifier.ConstrainedClassifier
+import edu.illinois.cs.cogcomp.saul.classifier.infer.{ ConstrainedClassifier, Gurobi }
 import edu.illinois.cs.cogcomp.saulexamples.nlp.SemanticRoleLabeling.SRLClassifiers.{ argumentTypeLearner, argumentXuIdentifierGivenApredicate }
 import edu.illinois.cs.cogcomp.saulexamples.nlp.SemanticRoleLabeling.SRLConstraints._
 
-/** Created by Parisa on 12/27/15.
-  */
 object SRLConstrainedClassifiers {
   import SRLApps.srlDataModelObject._
-  val erSolver = new OJalgoHook
 
-  object argTypeConstraintClassifier extends ConstrainedClassifier[Relation, TextAnnotation](argumentTypeLearner) {
-    def subjectTo = r_and_c_args
-    override val solver = erSolver
+  object ArgTypeConstrainedClassifier extends ConstrainedClassifier[Relation, TextAnnotation] {
+    override def subjectTo = Some(allPredicateArgumentConstraints)
+    override def solverType = Gurobi
+    override lazy val onClassifier = argumentTypeLearner
     override val pathToHead = Some(-sentencesToRelations)
   }
 
-  object arg_Is_TypeConstraintClassifier extends ConstrainedClassifier[Relation, Relation](argumentTypeLearner) {
-    def subjectTo = arg_IdentifierClassifier_Constraint
-    override val solver = erSolver
+  object ArgIsTypeConstrainedClassifier extends ConstrainedClassifier[Relation, Relation] {
+    override def subjectTo = Some(arg_IdentifierClassifier_Constraint)
+    override def solverType = Gurobi
+    override lazy val onClassifier = argumentTypeLearner
   }
 
-  object arg_IdentifyConstraintClassifier extends ConstrainedClassifier[Relation, Relation](argumentXuIdentifierGivenApredicate) {
-    def subjectTo = arg_IdentifierClassifier_Constraint
-    override val solver = erSolver
+  object ArgIdentifyConstrainedClassifier extends ConstrainedClassifier[Relation, Relation] {
+    override def subjectTo = Some(arg_IdentifierClassifier_Constraint)
+    override def solverType = Gurobi
+    override lazy val onClassifier = argumentXuIdentifierGivenApredicate
   }
-
 }
-

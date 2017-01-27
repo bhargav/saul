@@ -7,13 +7,12 @@
 package edu.illinois.cs.cogcomp.saul.classifier
 
 import edu.illinois.cs.cogcomp.lbjava.learn.{ LinearThresholdUnit, SparseNetworkLearner }
+import edu.illinois.cs.cogcomp.saul.classifier.infer.ConstrainedClassifier
 import edu.illinois.cs.cogcomp.saul.datamodel.node.Node
 import org.slf4j.{ Logger, LoggerFactory }
 import Predef._
 import scala.reflect.ClassTag
 
-/** Created by Parisa on 5/22/15.
-  */
 object JointTrainSparseNetwork {
 
   val logger: Logger = LoggerFactory.getLogger(this.getClass)
@@ -58,8 +57,7 @@ object JointTrainSparseNetwork {
                   candidate =>
                     {
                       def trainOnce() = {
-
-                        val result = currentClassifier.classifier.discreteValue(candidate)
+                        val result = currentClassifier.onClassifier.classifier.discreteValue(candidate)
                         val trueLabel = oracle.discreteValue(candidate)
                         val lLexicon = currentClassifier.onClassifier.getLabelLexicon
                         var LTU_actual: Int = 0

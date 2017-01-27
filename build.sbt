@@ -63,18 +63,21 @@ lazy val commonSettings = Seq(
   libraryDependencies ++= Seq(
     ccgGroupId % "LBJava" % "1.2.25" withSources,
     ccgGroupId % "illinois-core-utilities" % cogcompNLPVersion withSources,
+    ccgGroupId % "illinois-inference" % "0.9.0" withSources,
     "com.gurobi" % "gurobi" % "6.0",
     "org.apache.commons" % "commons-math3" % "3.0",
     "org.scalatest" % "scalatest_2.11" % "2.2.4",
     "ch.qos.logback" % "logback-classic" % "1.1.7"
   ),
+  scalacOptions ++= Seq("-unchecked", "-feature", "-language:postfixOps"),
   fork := true,
   connectInput in run := true,
   headers := Map(
     "scala" -> (HeaderPattern.cStyleBlockComment, headerMsg),
     "java" -> (HeaderPattern.cStyleBlockComment, headerMsg)
   ),
-  excludeDependencies += "org.slf4j" % "slf4j-log4j12"
+  excludeDependencies += "org.slf4j" % "slf4j-log4j12",
+  testOptions in Test += Tests.Argument("-oF") // shows the complete stack-trace, if things break in the test
 ) ++ publishSettings
 
 lazy val root = (project in file("."))
