@@ -59,9 +59,11 @@ object ChunkerDataModel extends DataModel {
   }
 
   // Filter to restrict window to current sentence's tokens only.
-  val previousTagsFilter = Seq({ token: Constituent => tokens(token) ~> -sentenceToTokens })
+  val sameSentenceTokensFilter = Seq({ token: Constituent => tokens(token) ~> -sentenceToTokens })
+
+  // Get Previous Chunk labels
   val previousTags = property(tokens, "PreviousTags", cache = true) { token: Constituent =>
-    tokens.getWithWindow(token, -2, -1, previousTagsFilter)
+    tokens.getWithWindow(token, -2, -1, sameSentenceTokensFilter)
       .flatten
       .map({ previousCons: Constituent =>
         // Use Label while training and prediction while testing.
@@ -72,4 +74,35 @@ object ChunkerDataModel extends DataModel {
         }
       })
   }
+
+  // Get surface forms in context window
+  val forms = property(tokens, "Forms") { token: Constituent =>
+    tokens.getWithWindow(token, -2, +2, sameSentenceTokensFilter)
+      .flatten
+      .map(_.getSurfaceForm)
+  }
+
+  // Formpp Feature
+  val formpp = property(tokens, "Formpp") { token: Constituent =>
+    val window = 2
+    val surfaceForms: List[String] = forms(token)
+
+    // Feature range
+    val range = for {
+      j <- 0 until window
+      i <- surfaceForms.indices
+    } yield (j, i)
+
+    range.map({ case (j: Int, i: Int) =>
+      val contextStrings = for {
+        context <- 0 until window
+        if i + context < surfaceForms.length
+      } yield s"${i}_${j}:${surfaceForms(i + context)}"
+
+      contextStrings.mkString("_")
+    })
+      .toList
+  }
+
+
 }
