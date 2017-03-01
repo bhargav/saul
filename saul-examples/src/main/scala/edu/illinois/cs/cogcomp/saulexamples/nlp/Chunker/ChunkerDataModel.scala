@@ -114,12 +114,92 @@ object ChunkerDataModel extends DataModel {
   }
 
   // Mixed Feature
+  private val mixedBefore = 2
+  private val mixedAfter = 2
+  private val mixedK = 2
   val mixed = property(tokens, "Mixed") { token: Constituent =>
-    ""
+    val tokenNeighborhood = tokens.getWithWindow(token, -mixedBefore, mixedAfter, sameSentenceTokensFilter).flatten
+
+    val tags = new mutable.ArrayBuffer[String](mixedBefore + mixedAfter + 1)
+    val forms = new mutable.ArrayBuffer[String](mixedBefore + mixedAfter + 1)
+
+    tokenNeighborhood.foreach({ tokenNear: Constituent =>
+      val posCons = tokenNear.getTextAnnotation
+        .getView(ViewNames.POS)
+        .getConstituentsCovering(tokenNear)
+        .head
+
+      tags.append(posCons.getLabel)
+      forms.append(tokenNear.getSurfaceForm)
+    })
+
+    val mixedFeatures = new mutable.ArrayBuffer[String]()
+
+    for {
+      j <- 1 to mixedK
+      x <- 0 to 2
+    } {
+      var t: Boolean = true
+      tags.zipWithIndex
+        .foreach({ case (tag: String, i: Int) =>
+            val stringBuffer = new StringBuffer()
+
+            for {
+              context <- 0 until j
+              if i + context < tags.size
+            } {
+              if (context != 0) stringBuffer.append("_")
+
+              if (t && x == 0) {
+                stringBuffer.append(tags(i + context))
+              } else {
+                stringBuffer.append(forms(i + context))
+              }
+
+              t = !t
+            }
+
+            mixedFeatures.append(s"${i}_${j}:${stringBuffer.toString}")
+        })
+    }
+
+    mixedFeatures.toList
   }
 
   // SO Previous Feature
-  val SOPrevious = property(tokens, "SOPrevious") { token: Constituent =>
-    ""
+  val SOPrevious = property(tokens, "SOPrevious", cache = true) { token: Constituent =>
+    val tokenNeighborhood = tokens.getWithWindow(token, -2, 0, sameSentenceTokensFilter).flatten
+
+    val tags = new mutable.ArrayBuffer[String](3)
+    val labels = new mutable.ArrayBuffer[String](2)
+
+    tokenNeighborhood.foreach({ tokenNear: Constituent =>
+      val posCons = tokenNear.getTextAnnotation
+        .getView(ViewNames.POS)
+        .getConstituentsCovering(tokenNear)
+        .head
+
+      tags.append(posCons.getLabel)
+
+      // Use Label while training and prediction while testing.
+      if (ChunkerClassifiers.ChunkerClassifier.isTraining) {
+        labels.append(chunkLabel(tokenNear))
+      } else {
+        labels.append(ChunkerClassifiers.ChunkerClassifier(tokenNear))
+      }
+    })
+
+    tags.append(tags.last)
+
+    val features = new mutable.ArrayBuffer[String]()
+
+    if (labels.size >= 2) {
+      features.append(s"ll:${labels(0)}_${labels(1)}")
+      features.append(s"lt2:${labels(1)}_${tags(2)}")
+    }
+
+    features.append(s"lt1:${labels(0)}_${tags(1)}")
+
+    features.toList
   }
 }
