@@ -9,13 +9,25 @@ package edu.illinois.cs.cogcomp.saulexamples.nlp.Chunker
 import edu.illinois.cs.cogcomp.annotation.BasicTextAnnotationBuilder
 import edu.illinois.cs.cogcomp.core.datastructures.ViewNames
 import edu.illinois.cs.cogcomp.core.datastructures.textannotation._
+import edu.illinois.cs.cogcomp.core.experiments.ClassificationTester
+import edu.illinois.cs.cogcomp.core.experiments.evaluators.ConstituentLabelingEvaluator
 import edu.illinois.cs.cogcomp.saul.classifier.ClassifierUtils
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable
 import scala.io.Source
 
+object ChunkerConstants {
+  val SHALLOW_PARSE_GOLD_SPAN_VIEW = "SHALLOW_PARSE_GOLD"
+  val SHALLOW_PARSE_GOLD_BIO_VIEW = "SHALLOW_PARSE_GOLD_BIO"
+
+  val SHALLOW_PARSE_ANNOTATED_SPAN_VIEW = "SHALLOW_PARSE_ANNOTATED"
+  val SHALLOW_PARSE_ANNOTATED_BIO_VIEW = "SHALLOW_PARSE_ANNOTATED_BIO"
+}
+
 object ChunkerApp extends App {
+  import ChunkerConstants._
+
   val trainFile = "../data/conll2000chunking/train.txt"
   val testFile = "../data/conll2000chunking/test.txt"
 
@@ -35,7 +47,7 @@ object ChunkerApp extends App {
           val textAnnotation = BasicTextAnnotationBuilder.createTextAnnotationFromTokens(sentenceList)
 
           val posView = new TokenLabelView(ViewNames.POS, textAnnotation)
-          val chunkLabelView = new SpanLabelView(ViewNames.SHALLOW_PARSE, textAnnotation)
+          val chunkLabelView = new SpanLabelView(SHALLOW_PARSE_GOLD_BIO_VIEW, textAnnotation)
 
           textAnnotation.getView(ViewNames.TOKENS)
             .getConstituents
@@ -45,12 +57,14 @@ object ChunkerApp extends App {
                 val posCons = constituent.cloneForNewViewWithDestinationLabel(ViewNames.POS, posLabels(idx))
                 posView.addConstituent(posCons)
 
-                val chunkCons = constituent.cloneForNewViewWithDestinationLabel(ViewNames.SHALLOW_PARSE, chunkLabels(idx))
+                val chunkCons = constituent.cloneForNewViewWithDestinationLabel(SHALLOW_PARSE_GOLD_BIO_VIEW, chunkLabels(idx))
                 chunkLabelView.addConstituent(chunkCons)
             })
 
           textAnnotation.addView(ViewNames.POS, posView)
-          textAnnotation.addView(ViewNames.SHALLOW_PARSE, chunkLabelView)
+          textAnnotation.addView(SHALLOW_PARSE_GOLD_BIO_VIEW, chunkLabelView)
+
+          ChunkerUtilities.addGoldSpanLabelView(textAnnotation, SHALLOW_PARSE_GOLD_BIO_VIEW, SHALLOW_PARSE_GOLD_SPAN_VIEW)
 
           arrayBuffer.append(textAnnotation)
           tokenConstituents.clear()
@@ -90,5 +104,28 @@ object ChunkerApp extends App {
 
   ChunkerClassifiers.ChunkerClassifier.learn(10)
   println(ChunkerClassifiers.ChunkerClassifier.test())
-  ClassifierUtils.SaveClassifiers(ChunkerClassifiers.ChunkerClassifier)
+
+  val evaluator = new ConstituentLabelingEvaluator()
+  val tester = new ClassificationTester()
+
+  val chunkerAnnotator = new ChunkerAnnotator()
+  testData.foreach({ textAnnotation: TextAnnotation =>
+    // Remove POS View before evaluation.
+    textAnnotation.removeView(ViewNames.POS)
+
+    chunkerAnnotator.addView(textAnnotation)
+
+    val goldView = textAnnotation.getView(SHALLOW_PARSE_GOLD_SPAN_VIEW)
+    val annotatedView = textAnnotation.getView(SHALLOW_PARSE_ANNOTATED_SPAN_VIEW)
+
+    // Workaround for incorrect ConstituentLabelingEvaluator behaviour.
+    val predictedView = new SpanLabelView(SHALLOW_PARSE_GOLD_SPAN_VIEW, textAnnotation)
+    annotatedView.getConstituents.foreach({ cons: Constituent =>
+      predictedView.addConstituent(cons.cloneForNewView(SHALLOW_PARSE_GOLD_SPAN_VIEW))
+    })
+
+    evaluator.evaluate(tester, goldView, predictedView)
+  })
+
+  println(tester.getPerformanceTable.toOrgTable)
 }

@@ -6,19 +6,13 @@
   */
 package edu.illinois.cs.cogcomp.saulexamples.nlp.Chunker
 
-import edu.illinois.cs.cogcomp.core.datastructures.ViewNames
-import edu.illinois.cs.cogcomp.core.datastructures.textannotation.{ Constituent, Sentence, TextAnnotation }
+import edu.illinois.cs.cogcomp.core.datastructures.textannotation.{ Constituent, Sentence }
 
 import scala.collection.JavaConversions._
 
 object ChunkerSensors {
 
-  def getSentencesInDocument(document: TextAnnotation): Seq[Sentence] = {
-    val numberOfSentences = document.getNumberOfSentences
-    (0 until numberOfSentences).map(document.getSentence)
-  }
-
   def getTokensInSentence(sentence: Sentence): Seq[Constituent] = {
-    sentence.getView(ViewNames.SHALLOW_PARSE).getConstituents
+    sentence.getView(ChunkerConstants.SHALLOW_PARSE_GOLD_BIO_VIEW).getConstituents
   }
 }
