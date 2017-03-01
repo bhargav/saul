@@ -30,6 +30,6 @@ object ChunkerClassifiers {
 
     override def feature = using(
       wordTypeInformation, affixes, posWindow, capitalizationWindowProperty, previousTags,
-      mixed, SOPrevious)
+      forms, formpp, mixed, SOPrevious)
   }
 }
