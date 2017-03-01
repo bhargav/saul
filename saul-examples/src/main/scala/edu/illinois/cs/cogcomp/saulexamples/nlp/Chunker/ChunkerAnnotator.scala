@@ -14,7 +14,12 @@ import edu.illinois.cs.cogcomp.saulexamples.nlp.POSTagger.{POSAnnotator, POSTagg
 
 import scala.collection.JavaConversions._
 
-class ChunkerAnnotator extends Annotator(ChunkerConstants.SHALLOW_PARSE_ANNOTATED_SPAN_VIEW, Array(ViewNames.TOKENS)) {
+/** Chunker Annotator implementation
+  *
+  * @param useHeuristics To use heuristics to fix BIO annotation.
+  */
+class ChunkerAnnotator(val useHeuristics: Boolean = true)
+  extends Annotator(ChunkerConstants.SHALLOW_PARSE_ANNOTATED_SPAN_VIEW, Array(ViewNames.TOKENS)) {
 
   override def initialize(rm: ResourceManager): Unit = {}
 
@@ -43,7 +48,17 @@ class ChunkerAnnotator extends Annotator(ChunkerConstants.SHALLOW_PARSE_ANNOTATE
 
     ta.addView(chunkerBIOView.getViewName, chunkerBIOView)
 
-    ChunkerUtilities.addGoldSpanLabelView(ta, chunkerBIOView.getViewName, ChunkerConstants.SHALLOW_PARSE_ANNOTATED_SPAN_VIEW)
+    if (useHeuristics) {
+      ChunkerUtilities.addSpanLabelViewUsingHeuristics(
+        ta,
+        chunkerBIOView.getViewName,
+        ChunkerConstants.SHALLOW_PARSE_ANNOTATED_SPAN_VIEW)
+    } else {
+      ChunkerUtilities.addGoldSpanLabelView(
+        ta,
+        chunkerBIOView.getViewName,
+        ChunkerConstants.SHALLOW_PARSE_ANNOTATED_SPAN_VIEW)
+    }
   }
 }
 

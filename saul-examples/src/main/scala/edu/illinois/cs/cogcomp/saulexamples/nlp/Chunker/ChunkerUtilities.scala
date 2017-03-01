@@ -6,7 +6,7 @@
   */
 package edu.illinois.cs.cogcomp.saulexamples.nlp.Chunker
 
-import edu.illinois.cs.cogcomp.core.datastructures.textannotation.{SpanLabelView, TextAnnotation, TokenLabelView}
+import edu.illinois.cs.cogcomp.core.datastructures.textannotation.{ Constituent, SpanLabelView, TextAnnotation }
 import edu.illinois.cs.cogcomp.saul.util.Logging
 
 import scala.collection.JavaConversions._
@@ -21,43 +21,94 @@ object ChunkerUtilities extends Logging {
 
     val destinationView = new SpanLabelView(destView, ta)
 
-    var currentSpanStart = -1
-    var currentSpanEnd = -1
-    var currentTag = ""
+    var currentChunkStart = -1
+    var currentChunkEnd = -1
+    var cLabel = ""
 
     ta.getView(sourceBIOView).getConstituents.foreach({ constituent =>
-      val inASpan = currentSpanStart != -1
+      val inASpan = currentChunkStart != -1
 
       if (inASpan) {
         if (constituent.getLabel.startsWith("O") || constituent.getLabel.startsWith("B-")) {
-          destinationView.addSpanLabel(currentSpanStart, currentSpanEnd, currentTag, 1.0d)
-          currentSpanStart = -1
-          currentSpanEnd = -1
-          currentTag = ""
+          destinationView.addSpanLabel(currentChunkStart, currentChunkEnd, cLabel, 1.0d)
+          currentChunkStart = -1
+          currentChunkEnd = -1
+          cLabel = ""
         } else {
           // Label Starts with I-
-          if (constituent.getLabel.endsWith(currentTag)) {
-            currentSpanEnd = constituent.getEndSpan
+          if (constituent.getLabel.endsWith(cLabel)) {
+            currentChunkEnd = constituent.getEndSpan
           } else {
-            destinationView.addSpanLabel(currentSpanStart, currentSpanEnd, currentTag, 1.0d)
+            destinationView.addSpanLabel(currentChunkStart, currentChunkEnd, cLabel, 1.0d)
             logger.info("Dangling I-label")
 
-            currentSpanStart = -1
-            currentSpanEnd = -1
-            currentTag = ""
+            currentChunkStart = -1
+            currentChunkEnd = -1
+            cLabel = ""
           }
         }
       }
 
       if (constituent.getLabel.startsWith("B-")) {
-        currentSpanStart = constituent.getStartSpan
-        currentSpanEnd = constituent.getEndSpan
-        currentTag = constituent.getLabel.substring(2)
+        currentChunkStart = constituent.getStartSpan
+        currentChunkEnd = constituent.getEndSpan
+        cLabel = constituent.getLabel.substring(2)
       }
       else if (!inASpan && constituent.getLabel.startsWith("I-")) {
         logger.info(s"Dangling I- label for constituent - $constituent")
       }
     })
+
+    if (currentChunkStart != -1 && currentChunkEnd != -1 && cLabel.nonEmpty) {
+      destinationView.addSpanLabel(currentChunkStart, currentChunkEnd, cLabel, 1.0d)
+    }
+
+    ta.addView(destView, destinationView)
+  }
+
+  def addSpanLabelViewUsingHeuristics(ta: TextAnnotation, sourceBIOView: String, destView: String): Unit = {
+    assert(ta.hasView(sourceBIOView))
+    assert(!ta.hasView(destView))
+
+    val destinationView = new SpanLabelView(destView, ta)
+
+    var currentChunkStart = -1
+    var currentChunkEnd = -1
+    var cLabel = ""
+    var previousConstituent: Option[Constituent] = None
+
+    ta.getView(sourceBIOView).getConstituents.foreach({ constituent =>
+      // Running version of current constituent's predicted label.
+      var currentLabel = constituent.getLabel
+
+      if (currentLabel.startsWith("I-")) {
+        if (cLabel.isEmpty) {
+          currentLabel = "B" + currentLabel.substring(1)
+        } else if (!currentLabel.endsWith(cLabel)) {
+          currentLabel = "B" + currentLabel.substring(1)
+        }
+      }
+
+      if ((currentLabel.startsWith("B-") || currentLabel.startsWith("O")) && cLabel.nonEmpty) {
+        if (previousConstituent.nonEmpty) {
+          currentChunkEnd = previousConstituent.get.getEndSpan
+          destinationView.addSpanLabel(currentChunkStart, currentChunkEnd, cLabel, 1.0d)
+          cLabel = ""
+        }
+      }
+
+      if (currentLabel.startsWith("B-")) {
+        currentChunkStart = constituent.getStartSpan
+        cLabel = currentLabel.substring(2)
+      }
+
+      previousConstituent = Some(constituent)
+    })
+
+    if (cLabel.nonEmpty && previousConstituent.nonEmpty) {
+      currentChunkEnd = previousConstituent.get.getEndSpan
+      destinationView.addSpanLabel(currentChunkStart, currentChunkEnd, cLabel, 1.0d)
+    }
 
     ta.addView(destView, destinationView)
   }
