@@ -32,7 +32,7 @@ class ChunkerAnnotator(val useHeuristics: Boolean = true)
       ChunkerAnnotator.localPOSAnnotator.addView(ta)
     }
 
-    val tokens = ta.getView(ChunkerConstants.SHALLOW_PARSE_GOLD_BIO_VIEW).getConstituents
+    val tokens = ta.getView(ViewNames.TOKENS).getConstituents
 
     ChunkerDataModel.sentence.clear()
     val sentences = (0 until ta.getNumberOfSentences).map(ta.getSentence)

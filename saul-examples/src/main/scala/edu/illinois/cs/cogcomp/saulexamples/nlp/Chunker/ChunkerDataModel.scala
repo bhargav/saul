@@ -12,6 +12,7 @@ import edu.illinois.cs.cogcomp.edison.features.ContextFeatureExtractor
 import edu.illinois.cs.cogcomp.edison.features.factory.WordFeatureExtractorFactory
 import edu.illinois.cs.cogcomp.edison.features.lrec.{ Affixes, POSWindow, WordTypeInformation }
 import edu.illinois.cs.cogcomp.saul.datamodel.DataModel
+import edu.illinois.cs.cogcomp.saulexamples.nlp.CommonSensors
 
 import scala.collection.mutable
 import scala.collection.JavaConversions._
@@ -21,10 +22,16 @@ object ChunkerDataModel extends DataModel {
   val tokens = node[Constituent]
 
   val sentenceToTokens = edge(sentence, tokens)
-  sentenceToTokens.addSensor(ChunkerSensors.getTokensInSentence _)
+  sentenceToTokens.addSensor(CommonSensors.sentenceToTokens _)
 
-  // Label
-  val chunkLabel = property(tokens, "ChunkLabel") { token: Constituent => token.getLabel }
+  // GOLD BIO label for SHALLOW_PARSE
+  val chunkLabel = property(tokens, "ChunkLabel") { token: Constituent =>
+    token.getTextAnnotation
+      .getView(ChunkerConstants.SHALLOW_PARSE_GOLD_BIO_VIEW)
+      .getConstituentsCovering(token)
+      .head
+      .getLabel
+  }
 
   // Affixes feature
   private val affixFeatureExtractor = new Affixes(ViewNames.TOKENS)

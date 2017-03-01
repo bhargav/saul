@@ -13,10 +13,13 @@ import edu.illinois.cs.cogcomp.core.datastructures.textannotation._
 import edu.illinois.cs.cogcomp.core.experiments.ClassificationTester
 import edu.illinois.cs.cogcomp.core.experiments.evaluators.ConstituentLabelingEvaluator
 import edu.illinois.cs.cogcomp.core.utilities.configuration.ResourceManager
+import edu.illinois.cs.cogcomp.nlp.tokenizer.StatefulTokenizer
+import edu.illinois.cs.cogcomp.nlp.utility.TokenizerTextAnnotationBuilder
 import edu.illinois.cs.cogcomp.saul.classifier.ClassifierUtils
 import edu.illinois.cs.cogcomp.saul.util.Logging
 
 import scala.collection.JavaConversions._
+import scala.io.StdIn
 
 
 object ChunkerApp extends Logging {
@@ -119,6 +122,22 @@ object ChunkerApp extends Logging {
   }
 
   def interactiveWithPretrainedModels(): Unit = {
+    val taBuilder = new TokenizerTextAnnotationBuilder(new StatefulTokenizer())
 
+    while (true) {
+      println("Enter a sentence to annotate (or Press Enter to exit)")
+      val input = StdIn.readLine()
+
+      input match {
+        case sentence: String if sentence.trim.nonEmpty =>
+          // Create a Text Annotation with the current input sentence.
+          val ta = taBuilder.createTextAnnotation(sentence.trim)
+          preTrainedAnnotator.addView(ta)
+          println("POS View            : " + ta.getView(ViewNames.POS).toString)
+          println("Annotated BIO View  : " + ta.getView(SHALLOW_PARSE_ANNOTATED_BIO_VIEW))
+          println("Annotated Span View : " + ta.getView(SHALLOW_PARSE_ANNOTATED_SPAN_VIEW))
+        case _ => return
+      }
+    }
   }
 }
