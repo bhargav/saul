@@ -13,6 +13,7 @@ import edu.illinois.cs.cogcomp.edison.features.factory.WordFeatureExtractorFacto
 import edu.illinois.cs.cogcomp.edison.features.lrec.{ Affixes, POSWindow, WordTypeInformation }
 import edu.illinois.cs.cogcomp.saul.datamodel.DataModel
 
+import scala.collection.mutable
 import scala.collection.JavaConversions._
 
 object ChunkerDataModel extends DataModel {
@@ -85,24 +86,33 @@ object ChunkerDataModel extends DataModel {
   // Formpp Feature
   val formpp = property(tokens, "Formpp") { token: Constituent =>
     val window = 2
+    val contextBuffer = new mutable.ArrayBuffer[String]()
+
     val surfaceForms: List[String] = forms(token)
 
     // Feature range
-    val range = for {
+    for {
       j <- 0 until window
       i <- surfaceForms.indices
-    } yield (j, i)
-
-    range.map({ case (j: Int, i: Int) =>
+    } {
       val contextStrings = for {
         context <- 0 until window
         if i + context < surfaceForms.length
       } yield s"${i}_${j}:${surfaceForms(i + context)}"
 
-      contextStrings.mkString("_")
-    })
-      .toList
+      contextBuffer.append(contextStrings.mkString("_"))
+    }
+
+    contextBuffer.toList
   }
 
+  // Mixed Feature
+  val mixed = property(tokens, "Mixed") { token: Constituent =>
+    ""
+  }
 
+  // SO Previous Feature
+  val SOPrevious = property(tokens, "SOPrevious") { token: Constituent =>
+    ""
+  }
 }

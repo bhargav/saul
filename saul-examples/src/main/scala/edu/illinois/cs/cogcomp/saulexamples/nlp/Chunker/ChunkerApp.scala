@@ -6,126 +6,119 @@
   */
 package edu.illinois.cs.cogcomp.saulexamples.nlp.Chunker
 
-import edu.illinois.cs.cogcomp.annotation.BasicTextAnnotationBuilder
+import java.util.Properties
+
 import edu.illinois.cs.cogcomp.core.datastructures.ViewNames
 import edu.illinois.cs.cogcomp.core.datastructures.textannotation._
 import edu.illinois.cs.cogcomp.core.experiments.ClassificationTester
 import edu.illinois.cs.cogcomp.core.experiments.evaluators.ConstituentLabelingEvaluator
+import edu.illinois.cs.cogcomp.core.utilities.configuration.ResourceManager
 import edu.illinois.cs.cogcomp.saul.classifier.ClassifierUtils
+import edu.illinois.cs.cogcomp.saul.util.Logging
 
 import scala.collection.JavaConversions._
-import scala.collection.mutable
-import scala.io.Source
 
-object ChunkerConstants {
-  val SHALLOW_PARSE_GOLD_SPAN_VIEW = "SHALLOW_PARSE_GOLD"
-  val SHALLOW_PARSE_GOLD_BIO_VIEW = "SHALLOW_PARSE_GOLD_BIO"
 
-  val SHALLOW_PARSE_ANNOTATED_SPAN_VIEW = "SHALLOW_PARSE_ANNOTATED"
-  val SHALLOW_PARSE_ANNOTATED_BIO_VIEW = "SHALLOW_PARSE_ANNOTATED_BIO"
-}
-
-object ChunkerApp extends App {
+object ChunkerApp extends Logging {
   import ChunkerConstants._
 
   val trainFile = "../data/conll2000chunking/train.txt"
   val testFile = "../data/conll2000chunking/test.txt"
 
-  def parseData(fileName: String): Seq[TextAnnotation] = {
-    val arrayBuffer = mutable.Buffer[TextAnnotation]()
-
-    val tokenConstituents = mutable.ArrayBuffer[String]()
-    val posLabels = mutable.ArrayBuffer[String]()
-    val chunkLabels = mutable.ArrayBuffer[String]()
-    var numSentences = 0
-
-    Source.fromFile(fileName)
-      .getLines()
-      .foreach({ line: String =>
-        if (line.isEmpty) {
-          val sentenceList = List(tokenConstituents.toArray[String])
-          val textAnnotation = BasicTextAnnotationBuilder.createTextAnnotationFromTokens(sentenceList)
-
-          val posView = new TokenLabelView(ViewNames.POS, textAnnotation)
-          val chunkLabelView = new SpanLabelView(SHALLOW_PARSE_GOLD_BIO_VIEW, textAnnotation)
-
-          textAnnotation.getView(ViewNames.TOKENS)
-            .getConstituents
-            .zipWithIndex
-            .foreach({
-              case (constituent: Constituent, idx: Int) =>
-                val posCons = constituent.cloneForNewViewWithDestinationLabel(ViewNames.POS, posLabels(idx))
-                posView.addConstituent(posCons)
-
-                val chunkCons = constituent.cloneForNewViewWithDestinationLabel(SHALLOW_PARSE_GOLD_BIO_VIEW, chunkLabels(idx))
-                chunkLabelView.addConstituent(chunkCons)
-            })
-
-          textAnnotation.addView(ViewNames.POS, posView)
-          textAnnotation.addView(SHALLOW_PARSE_GOLD_BIO_VIEW, chunkLabelView)
-
-          ChunkerUtilities.addGoldSpanLabelView(textAnnotation, SHALLOW_PARSE_GOLD_BIO_VIEW, SHALLOW_PARSE_GOLD_SPAN_VIEW)
-
-          arrayBuffer.append(textAnnotation)
-          tokenConstituents.clear()
-          posLabels.clear()
-          chunkLabels.clear()
-
-          numSentences += 1
-        } else {
-          val reader = line.split(" ")
-          tokenConstituents.append(reader(0))
-          posLabels.append(reader(1))
-          chunkLabels.append(reader(2))
-        }
-      })
-
-    println("Number of sentences = " + numSentences)
-
-    arrayBuffer
-  }
-
-  lazy val trainData = parseData(trainFile)
-  lazy val testData = parseData(testFile)
-
   val jarModelPath = ""
 
-  trainData.foreach({ textAnnotation: TextAnnotation =>
-    val numberOfSentences = textAnnotation.getNumberOfSentences
-    val sentences = (0 until numberOfSentences).map(textAnnotation.getSentence)
-    ChunkerDataModel.sentence.populate(sentences, train = true)
-  })
+  object ChunkerExperimentType extends Enumeration {
+    val TrainAndTest, TestFromModel, Interactive = Value
 
-  testData.foreach({ textAnnotation: TextAnnotation =>
-    val numberOfSentences = textAnnotation.getNumberOfSentences
-    val sentences = (0 until numberOfSentences).map(textAnnotation.getSentence)
-    ChunkerDataModel.sentence.populate(sentences, train = false)
-  })
+    def withNameOpt(s: String): Option[Value] = values.find(_.toString == s)
+  }
 
-  ChunkerClassifiers.ChunkerClassifier.learn(10)
-  println(ChunkerClassifiers.ChunkerClassifier.test())
+  def main(args: Array[String]): Unit = {
+    /** Try to parse the experiment type as input argument or use default */
+    val testType = args.headOption
+      .flatMap(ChunkerExperimentType.withNameOpt)
+      .getOrElse(ChunkerExperimentType.Interactive)
 
-  val evaluator = new ConstituentLabelingEvaluator()
-  val tester = new ClassificationTester()
+    testType match {
+      case ChunkerExperimentType.TrainAndTest => trainAndTest()
+      case ChunkerExperimentType.TestFromModel => testWithPretrainedModels()
+      case ChunkerExperimentType.Interactive => interactiveWithPretrainedModels()
+    }
+  }
 
-  val chunkerAnnotator = new ChunkerAnnotator()
-  testData.foreach({ textAnnotation: TextAnnotation =>
-    // Remove POS View before evaluation.
-    textAnnotation.removeView(ViewNames.POS)
+  private def loadModelFromJarPath(): Unit = {
+    // Load model from jar path
+//    ClassifierUtils.LoadClassifier(
+//      jarModelPath,
+//      ChunkerClassifiers.ChunkerClassifier)
+    ChunkerClassifiers.ChunkerClassifier.load()
+  }
 
-    chunkerAnnotator.addView(textAnnotation)
+  private def getSentencesInTextAnnotation(taSeq: Seq[TextAnnotation]) = {
+    taSeq.flatMap({ textAnnotation: TextAnnotation =>
+      (0 until textAnnotation.getNumberOfSentences).map(textAnnotation.getSentence)
+    })
+  }
 
-    val goldView = textAnnotation.getView(SHALLOW_PARSE_GOLD_SPAN_VIEW)
-    val annotatedView = textAnnotation.getView(SHALLOW_PARSE_ANNOTATED_SPAN_VIEW)
+  lazy val trainData = ChunkerDataReader.parseData(trainFile)
+  lazy val testData = ChunkerDataReader.parseData(testFile)
 
-    // Workaround for incorrect ConstituentLabelingEvaluator behaviour.
-    val predictedView = new SpanLabelView(SHALLOW_PARSE_GOLD_SPAN_VIEW, textAnnotation)
-    annotatedView.getConstituents.foreach({ cons: Constituent =>
-      predictedView.addConstituent(cons.cloneForNewView(SHALLOW_PARSE_GOLD_SPAN_VIEW))
+  lazy val preTrainedAnnotator: ChunkerAnnotator = {
+    loadModelFromJarPath()
+
+    val annotatorInstance = new ChunkerAnnotator()
+    annotatorInstance.initialize(new ResourceManager(new Properties()))
+    annotatorInstance
+  }
+
+  /** Note: This function does NOT populate testing instances.
+    * Also does not use GOLD POS tags. Instead a trained POSAnnotater is used. */
+  private def testModelImpl(): Unit = {
+    ClassifierUtils.TestClassifiers(ChunkerClassifiers.ChunkerClassifier)
+
+    val evaluator = new ConstituentLabelingEvaluator()
+    val tester = new ClassificationTester()
+
+    testData.foreach({ textAnnotation: TextAnnotation =>
+      // Remove POS View before evaluation.
+      textAnnotation.removeView(ViewNames.POS)
+
+      preTrainedAnnotator.addView(textAnnotation)
+
+      val goldView = textAnnotation.getView(SHALLOW_PARSE_GOLD_SPAN_VIEW)
+      val annotatedView = textAnnotation.getView(SHALLOW_PARSE_ANNOTATED_SPAN_VIEW)
+
+      // Workaround for incorrect ConstituentLabelingEvaluator behaviour.
+      val predictedView = new SpanLabelView(SHALLOW_PARSE_GOLD_SPAN_VIEW, textAnnotation)
+      annotatedView.getConstituents.foreach({ cons: Constituent =>
+        predictedView.addConstituent(cons.cloneForNewView(SHALLOW_PARSE_GOLD_SPAN_VIEW))
+      })
+
+      evaluator.evaluate(tester, goldView, predictedView)
     })
 
-    evaluator.evaluate(tester, goldView, predictedView)
-  })
+    println(tester.getPerformanceTable.toOrgTable)
+  }
 
-  println(tester.getPerformanceTable.toOrgTable)
+  def trainAndTest(): Unit = {
+    ChunkerDataModel.sentence.populate(getSentencesInTextAnnotation(trainData), train = true)
+    ChunkerDataModel.sentence.populate(getSentencesInTextAnnotation(testData), train = false)
+
+    ChunkerClassifiers.ChunkerClassifier.learn(50)
+    ClassifierUtils.SaveClassifiers(ChunkerClassifiers.ChunkerClassifier)
+
+    testModelImpl()
+  }
+
+  def testWithPretrainedModels(): Unit = {
+    loadModelFromJarPath()
+
+    ChunkerDataModel.sentence.populate(getSentencesInTextAnnotation(testData), train = false)
+
+    testModelImpl()
+  }
+
+  def interactiveWithPretrainedModels(): Unit = {
+
+  }
 }

@@ -28,6 +28,8 @@ object ChunkerClassifiers {
     /** Label property for users classifier */
     override def label = chunkLabel
 
-    override def feature = using(wordTypeInformation, affixes, posWindow, capitalizationWindowProperty, previousTags)
+    override def feature = using(
+      wordTypeInformation, affixes, posWindow, capitalizationWindowProperty, previousTags,
+      mixed, SOPrevious)
   }
 }

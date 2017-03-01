@@ -12,6 +12,7 @@ import scala.collection.JavaConversions._
 
 object ChunkerSensors {
 
+  /** Sensor to populate tokens node from a Sentence instance */
   def getTokensInSentence(sentence: Sentence): Seq[Constituent] = {
     sentence.getView(ChunkerConstants.SHALLOW_PARSE_GOLD_BIO_VIEW).getConstituents
   }

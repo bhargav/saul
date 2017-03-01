@@ -66,6 +66,7 @@ object ChunkerUtilities extends Logging {
     ta.addView(destView, destinationView)
   }
 
+  /** Convert BIO labelled annotation to SpanLabelView using some heuristics to handle error scenarios */
   def addSpanLabelViewUsingHeuristics(ta: TextAnnotation, sourceBIOView: String, destView: String): Unit = {
     assert(ta.hasView(sourceBIOView))
     assert(!ta.hasView(destView))
