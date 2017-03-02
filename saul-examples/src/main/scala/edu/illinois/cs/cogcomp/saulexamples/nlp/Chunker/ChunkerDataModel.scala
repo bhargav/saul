@@ -124,12 +124,7 @@ object ChunkerDataModel extends DataModel {
     val forms = new mutable.ArrayBuffer[String](mixedBefore + mixedAfter + 1)
 
     tokenNeighborhood.foreach({ tokenNear: Constituent =>
-      val posCons = tokenNear.getTextAnnotation
-        .getView(ViewNames.POS)
-        .getConstituentsCovering(tokenNear)
-        .head
-
-      tags.append(posCons.getLabel)
+      tags.append(CommonSensors.getPosTag(tokenNear))
       forms.append(tokenNear.getSurfaceForm)
     })
 
@@ -168,18 +163,13 @@ object ChunkerDataModel extends DataModel {
 
   // SO Previous Feature
   val SOPrevious = property(tokens, "SOPrevious", cache = true) { token: Constituent =>
-    val tokenNeighborhood = tokens.getWithWindow(token, -2, 0, sameSentenceTokensFilter).flatten
+    val tokenNeighborhood = tokens.getWithWindow(token, -2, -1, sameSentenceTokensFilter).flatten
 
     val tags = new mutable.ArrayBuffer[String](3)
     val labels = new mutable.ArrayBuffer[String](2)
 
     tokenNeighborhood.foreach({ tokenNear: Constituent =>
-      val posCons = tokenNear.getTextAnnotation
-        .getView(ViewNames.POS)
-        .getConstituentsCovering(tokenNear)
-        .head
-
-      tags.append(posCons.getLabel)
+      tags.append(CommonSensors.getPosTag(tokenNear))
 
       // Use Label while training and prediction while testing.
       if (ChunkerClassifiers.ChunkerClassifier.isTraining) {
@@ -189,16 +179,21 @@ object ChunkerDataModel extends DataModel {
       }
     })
 
-    tags.append(tags.last)
+    tags.append(CommonSensors.getPosTag(token))
 
     val features = new mutable.ArrayBuffer[String]()
 
     if (labels.size >= 2) {
       features.append(s"ll:${labels(0)}_${labels(1)}")
+    }
+
+    if (labels.size >= 2 && tags.size >= 3) {
       features.append(s"lt2:${labels(1)}_${tags(2)}")
     }
 
-    features.append(s"lt1:${labels(0)}_${tags(1)}")
+    if (tags.size >= 2) {
+      features.append(s"lt1:${labels(0)}_${tags(1)}")
+    }
 
     features.toList
   }
