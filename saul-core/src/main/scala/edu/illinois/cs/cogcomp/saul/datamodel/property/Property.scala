@@ -8,9 +8,10 @@ package edu.illinois.cs.cogcomp.saul.datamodel.property
 
 import java.util
 
-import edu.illinois.cs.cogcomp.lbjava.classify.{ Classifier, FeatureVector }
+import edu.illinois.cs.cogcomp.lbjava.classify.{Classifier, FeatureVector}
 import edu.illinois.cs.cogcomp.saul.datamodel.node.Node
 
+import scala.collection.mutable
 import scala.reflect.ClassTag
 
 /** Base trait for representing attributes that can be defined on a
@@ -30,7 +31,20 @@ trait Property[T] {
 
   def apply(instance: T): S = sensor(instance)
 
-  def featureVector(instance: T): FeatureVector
+  val isCachingEnabled = false
+
+  /** WeakHashMap instance to cache feature vectors */
+  private[Property] lazy val featureVectorCache = new mutable.WeakHashMap[T, FeatureVector]()
+
+  final def featureVector(instance: T): FeatureVector = {
+    if (isCachingEnabled) {
+      featureVectorCache.getOrElseUpdate(instance, featureVectorImpl(instance))
+    } else {
+      featureVectorImpl(instance)
+    }
+  }
+
+  protected def featureVectorImpl(instance: T): FeatureVector
 
   def outputType: String = "discrete"
 

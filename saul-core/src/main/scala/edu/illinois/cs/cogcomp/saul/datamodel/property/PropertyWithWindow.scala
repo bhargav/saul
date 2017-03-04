@@ -156,7 +156,7 @@ class PropertyWithWindow[T <: AnyRef](
     s"WindowProperty($before,$after}_Of${this.properties.map(_.name).mkString("|")}})"
   }
 
-  override def featureVector(instance: T): FeatureVector = {
+  override def featureVectorImpl(instance: T): FeatureVector = {
     val result: FeatureVector = new FeatureVector()
     hiddenProperties.foreach(property => result.addFeatures(property.featureVector(instance)))
     result

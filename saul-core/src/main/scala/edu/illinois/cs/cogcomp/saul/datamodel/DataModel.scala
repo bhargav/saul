@@ -160,7 +160,11 @@ trait DataModel extends Logging {
     e
   }
 
-  class PropertyApply[T <: AnyRef] private[DataModel] (val node: Node[T], name: String, cache: Boolean, ordered: Boolean) {
+  class PropertyApply[T <: AnyRef] private[DataModel] (val node: Node[T],
+                                                       name: String,
+                                                       isStatic: Boolean,
+                                                       cache: Boolean,
+                                                       ordered: Boolean) {
     papply =>
 
     // TODO(danielk): make the hashmaps immutable
@@ -174,7 +178,10 @@ trait DataModel extends Logging {
 
     def apply(f: T => Boolean)(implicit tag: ClassTag[T]): BooleanProperty[T] = {
       def cachedF = if (cache) { x: T => getOrUpdate(x, f).asInstanceOf[Boolean] } else f
-      val a = new BooleanProperty[T](name, cachedF) with NodeProperty[T] { override def node: Node[T] = papply.node }
+      val a = new BooleanProperty[T](name, cachedF) with NodeProperty[T] {
+        override def node: Node[T] = papply.node
+        override val isCachingEnabled: Boolean = isStatic
+      }
       papply.node.properties += a
       properties += a
       a
@@ -186,10 +193,12 @@ trait DataModel extends Logging {
       val a = if (ordered) {
         new RealArrayProperty[T](name, newf) with NodeProperty[T] {
           override def node: Node[T] = papply.node
+          override val isCachingEnabled: Boolean = isStatic
         }
       } else {
         new RealGenProperty[T](name, newf) with NodeProperty[T] {
           override def node: Node[T] = papply.node
+          override val isCachingEnabled: Boolean = isStatic
         }
       }
       papply.node.properties += a
@@ -203,6 +212,7 @@ trait DataModel extends Logging {
       val newf: T => Double = { t => cachedF(t).toDouble }
       val a = new RealProperty[T](name, newf) with NodeProperty[T] {
         override def node: Node[T] = papply.node
+        override val isCachingEnabled: Boolean = isStatic
       }
       papply.node.properties += a
       properties += a
@@ -215,6 +225,7 @@ trait DataModel extends Logging {
       def cachedF = if (cache) { x: T => getOrUpdate(x, f).asInstanceOf[List[Double]] } else f
       val a = new RealCollectionProperty[T](name, cachedF, ordered) with NodeProperty[T] {
         override def node: Node[T] = papply.node
+        override val isCachingEnabled: Boolean = isStatic
       }
       papply.node.properties += a
       properties += a
@@ -227,6 +238,7 @@ trait DataModel extends Logging {
       def cachedF = if (cache) { x: T => getOrUpdate(x, f).asInstanceOf[Double] } else f
       val a = new RealProperty[T](name, cachedF) with NodeProperty[T] {
         override def node: Node[T] = papply.node
+        override val isCachingEnabled: Boolean = isStatic
       }
       papply.node.properties += a
       properties += a
@@ -239,6 +251,7 @@ trait DataModel extends Logging {
       def cachedF = if (cache) { x: T => getOrUpdate(x, f).asInstanceOf[String] } else f
       val a = new DiscreteProperty[T](name, cachedF, None) with NodeProperty[T] {
         override def node: Node[T] = papply.node
+        override val isCachingEnabled: Boolean = isStatic
       }
       papply.node.properties += a
       properties += a
@@ -251,6 +264,7 @@ trait DataModel extends Logging {
       def cachedF = if (cache) { x: T => getOrUpdate(x, f).asInstanceOf[List[String]] } else f
       val a = new DiscreteCollectionProperty[T](name, cachedF, !ordered) with NodeProperty[T] {
         override def node: Node[T] = papply.node
+        override val isCachingEnabled: Boolean = isStatic
       }
       papply.node.properties += a
       properties += a
@@ -265,6 +279,7 @@ trait DataModel extends Logging {
       val r = range.toList
       val a = new DiscreteProperty[T](name, cachedF, Some(r)) with NodeProperty[T] {
         override def node: Node[T] = papply.node
+        override val isCachingEnabled: Boolean = isStatic
       }
       papply.node.properties += a
       properties += a
@@ -272,8 +287,12 @@ trait DataModel extends Logging {
     }
   }
 
-  def property[T <: AnyRef](node: Node[T], name: String = "prop" + properties.size, cache: Boolean = false, ordered: Boolean = false) =
-    new PropertyApply[T](node, name, cache, ordered)
+  def property[T <: AnyRef](node: Node[T],
+                            name: String = "prop" + properties.size,
+                            isStatic: Boolean = false,
+                            cache: Boolean = false,
+                            ordered: Boolean = false) =
+    new PropertyApply[T](node, name, isStatic = isStatic, cache = cache, ordered = ordered)
 
   /** Methods for caching Data Model */
   var hasDerivedInstances = false

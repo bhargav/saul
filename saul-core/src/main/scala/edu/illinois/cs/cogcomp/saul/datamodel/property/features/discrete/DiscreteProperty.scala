@@ -16,7 +16,7 @@ case class DiscreteProperty[T <: AnyRef](name: String, sensor: T => String, rang
 
   override def allowableValues: Array[String] = range.map(_.toArray[String]).getOrElse(Array.empty[String])
 
-  override def featureVector(instance: T): FeatureVector = {
+  override def featureVectorImpl(instance: T): FeatureVector = {
     range match {
       case Some(rangeValue) =>
         val result: String = sensor(instance)
