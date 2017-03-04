@@ -10,7 +10,8 @@ import edu.illinois.cs.cogcomp.core.datastructures.ViewNames
 import edu.illinois.cs.cogcomp.core.datastructures.textannotation.{ Constituent, Sentence }
 import edu.illinois.cs.cogcomp.edison.features.ContextFeatureExtractor
 import edu.illinois.cs.cogcomp.edison.features.factory.WordFeatureExtractorFactory
-import edu.illinois.cs.cogcomp.edison.features.lrec.{ Affixes, POSWindow, WordTypeInformation }
+import edu.illinois.cs.cogcomp.edison.features.helpers.WordHelpers
+import edu.illinois.cs.cogcomp.edison.features.lrec.{ Affixes, POSandPositionWindowThree }
 import edu.illinois.cs.cogcomp.saul.datamodel.DataModel
 import edu.illinois.cs.cogcomp.saulexamples.nlp.CommonSensors
 
@@ -33,6 +34,24 @@ object ChunkerDataModel extends DataModel {
       .getLabel
   }
 
+  /**
+    * Get Tokens from the same sentence in the context.
+    *
+    * @param token
+    * @param contextSize
+    * @return
+    */
+  def getTokensInContext(token: Constituent, contextSize: Int): Seq[(Constituent, Int)] = {
+    val currentSentence = (tokens(token) ~> -sentenceToTokens).head
+    val sentenceTokens = (sentence(currentSentence) ~> sentenceToTokens).toList.sortBy(_.getStartSpan)
+    val currentTokenPos = sentenceTokens.indexOf(token)
+
+    // Get tokens in a context
+    sentenceTokens.zipWithIndex
+      .slice(currentTokenPos - contextSize, currentTokenPos + contextSize)
+      .map({ case (cons: Constituent, index: Int) => (cons, index - currentTokenPos) })
+  }
+
   // Affixes feature
   private val affixFeatureExtractor = new Affixes(ViewNames.TOKENS)
   val affixes = property(tokens, "Affixes") { token: Constituent =>
@@ -42,15 +61,32 @@ object ChunkerDataModel extends DataModel {
   }
 
   // WordTypeInformation feature
-  private val wordTypeInformationExtractor = new WordTypeInformation(ViewNames.TOKENS)
   val wordTypeInformation = property(tokens, "WordTypeInformation") { token: Constituent =>
-    wordTypeInformationExtractor.getFeatures(token)
-      .map(_.getName)
-      .toList
+    getTokensInContext(token, 2).flatMap({ case (cons: Constituent, contextPos: Int) =>
+      val surfaceForm = cons.getSurfaceForm
+      val featureBuffer = new mutable.ArrayBuffer[String](3)
+
+      // All Capitalized
+      if (surfaceForm.forall(Character.isUpperCase)) {
+        featureBuffer.append(s"CAP_$contextPos")
+      }
+
+      // All Digits
+      if (surfaceForm.forall(Character.isDigit)) {
+        featureBuffer.append(s"digit_$contextPos")
+      }
+
+      // All Non-Digits
+      if (surfaceForm.forall(x => !Character.isLetter(x))) {
+        featureBuffer.append(s"nonLetter_$contextPos")
+      }
+
+      featureBuffer.toList
+    }).toList
   }
 
   // POS Window features
-  private val posWindowExtractor = new POSWindow(ViewNames.POS)
+  private val posWindowExtractor = new POSandPositionWindowThree(ViewNames.POS)
   val posWindow = property(tokens, "POSWindow") { token: Constituent =>
     posWindowExtractor.getFeatures(token)
       .map(_.getName)
@@ -58,46 +94,48 @@ object ChunkerDataModel extends DataModel {
   }
 
   // Capitalization features
-  private val capitalizationExtractor = new ContextFeatureExtractor(2, true, true,
-    WordFeatureExtractorFactory.capitalization)
   val capitalizationWindowProperty = property(tokens, "Capitalization") { token: Constituent =>
-    capitalizationExtractor.getFeatures(token)
-      .map(_.getName)
-      .toList
+    getTokensInContext(token, 2).flatMap({ case (cons: Constituent, contextPos: Int) =>
+      if (WordHelpers.isCapitalized(cons.getTextAnnotation, cons.getStartSpan)) {
+        Some(s"CAP_$contextPos")
+      } else {
+        None
+      }
+    }).toList
+  }
+
+  // Get Previous Chunk labels
+  val previousTags = property(tokens, "PreviousTags", cache = true) { token: Constituent =>
+    getTokensInContext(token, 2).takeWhile(_._2 < 0)
+      .map({
+        case (cons: Constituent, contextPos: Int) =>
+          // Use Label while training and prediction while testing.
+          if (ChunkerClassifiers.ChunkerClassifier.isTraining) {
+            s"${contextPos}_${chunkLabel(cons)}"
+          } else {
+            s"${contextPos}_${ChunkerClassifiers.ChunkerClassifier(cons)}"
+          }
+      }).toList
+  }
+
+  // Get surface forms in context window
+  private val formsExtractor = new ContextFeatureExtractor(2, true, true, WordFeatureExtractorFactory.wordCase)
+  val forms = property(tokens, "Forms") { token: Constituent =>
+    formsExtractor.getFeatures(token).map(_.getName).toList
   }
 
   // Filter to restrict window to current sentence's tokens only.
   val sameSentenceTokensFilter = Seq({ token: Constituent => tokens(token) ~> -sentenceToTokens })
-
-  // Get Previous Chunk labels
-  val previousTags = property(tokens, "PreviousTags", cache = true) { token: Constituent =>
-    tokens.getWithWindow(token, -2, -1, sameSentenceTokensFilter)
-      .flatten
-      .map({ previousCons: Constituent =>
-        // Use Label while training and prediction while testing.
-        if (ChunkerClassifiers.ChunkerClassifier.isTraining) {
-          chunkLabel(previousCons)
-        } else {
-          ChunkerClassifiers.ChunkerClassifier(previousCons)
-        }
-      })
-  }
-
-  // Get surface forms in context window
-  val forms = property(tokens, "Forms") { token: Constituent =>
-    tokens.getWithWindow(token, -2, +2, sameSentenceTokensFilter)
-      .flatten
-      .map(_.getSurfaceForm)
-  }
 
   // Formpp Feature
   val formpp = property(tokens, "Formpp") { token: Constituent =>
     val window = 2
     val contextBuffer = new mutable.ArrayBuffer[String]()
 
-    val surfaceForms: List[String] = forms(token)
+    val surfaceForms: List[String] = tokens.getWithWindow(token, -window, window, sameSentenceTokensFilter)
+      .flatten
+      .map(_.getSurfaceForm)
 
-    // Feature range
     for {
       j <- 0 until window
       i <- surfaceForms.indices
@@ -105,9 +143,7 @@ object ChunkerDataModel extends DataModel {
       val contextStrings = for {
         context <- 0 until window
         if i + context < surfaceForms.length
-      } yield s"${i}_${j}:${surfaceForms(i + context)}"
-
-      contextBuffer.append(contextStrings.mkString("_"))
+      } contextBuffer.append(s"${i}_${j}:${surfaceForms(i + context)}")
     }
 
     contextBuffer.toList
