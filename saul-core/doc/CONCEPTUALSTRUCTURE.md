@@ -37,10 +37,10 @@ In this definition `pos` is defined to be a property of nodes of type token. The
 inside `{ .... }` is  the definition of a sensor which given an object of type `ConllRawToken` i.e. the tye of node and
 generates an output property value (in this case, using the POS tag of an object of type `ConllRawToken`).
 
-If the content of a property is computationally intensive to compute, you can cache its value, by setting `cache` to be
+If the content of a property is computationally intensive to compute, you can cache its value, by setting `isStatic` to be
 `true`: 
 ```scala
-val pos = property(token, cache = true) {
+val pos = property(token, isStatic = true) {
    (t: ConllRawToken) => t.POS
 }
 ```
@@ -48,8 +48,20 @@ val pos = property(token, cache = true) {
 The first time that a property is called with a specific value, it would you remember the corresponding output, 
 so next time it just looks up the value from the cache. 
 
-Note that when training, the property cache is remove between two training interation in order not to interrupt 
-the trainng procedure. 
+**Note:** `isStatic` caches the value for the lifetime of the training process.
+
+If you want the value to be cache only during a single iteration, use the `cache` parameter. The `cache` parameter allows the value to be cached within a training/testing iteration. This is useful if you one of your features depends on evaluation of a Classifier on other instances as well. This recursive evaluation of the Classifier might be expensive and caching would speed-up performance. Look at a sample usage of this parameter in the [POSTagging Example](../../saul-examples/src/main/scala/edu/illinois/cs/cogcomp/saulexamples/nlp/POSTagger/POSDataModel.scala#L66).
+
+Usage:
+```scala
+val pos = property(token, cache = true) {
+   (t: ConllRawToken) => t.POS
+}
+```
+
+The value of these properties are cleared at the end of each training iteration.
+
+**Note:** The `isStatic` parameter supersedes the `cache` parameter. Static Properties are expected to have fixed output value throughout the training/testing process.
 
 #### Parameterized properties 
 Suppose you want to define properties which get some parameters; this can be important when we want to programmatically 
