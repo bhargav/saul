@@ -17,43 +17,78 @@ import scala.reflect.ClassTag
 /** Base trait for representing attributes that can be defined on a
   * [[Node]] instance.
   *
-  * @tparam T Type of the attribute
+  * @tparam T Type of instances stored in the corresponding Node.
   */
 trait Property[T] {
 
+  /** This field is used internally by LBJava. */
   private[property] val containingPackage = "LBP_Package"
+
+  /** Name of the property */
   val name: String
 
-  val tag: ClassTag[T]
+  /** ClassTag of the corresponding Node's instance type. */
+  private[saul] val tag: ClassTag[T]
+
+  /** Type of the property's value */
   type S
 
+  /** Generating sensor for extracting the feature from an Node instance */
   val sensor: T => S
 
+  /** Method to extract the feature value for an input Node instance
+    *
+    * @param instance Instance to extract the feature from.
+    * @return Extracted feature.
+    */
   def apply(instance: T): S = sensor(instance)
 
-  private[saul] val isStaticProperty = false
+  /** Boolean denoting if a property's value (feature) should be cached in-memory to prevent redundant evaluations */
+  private[saul] val isCacheable: Boolean = false
 
   /** WeakHashMap instance to cache feature vectors */
-  private[Property] lazy val featureVectorCache = new mutable.WeakHashMap[T, FeatureVector]()
+  private[Property] final lazy val featureVectorCache = new mutable.WeakHashMap[T, FeatureVector]()
 
+  /** Method to extract [[FeatureVector]] instance that is used the classifiers implemented using LBJava.
+    *
+    * Note: This method wraps the actual extractor method [[featureVectorImpl()]] to support feature caching.
+    *
+    * @param instance Instance to extract the feature vector from.
+    * @return Extracted Feature Vector.
+    */
   final def featureVector(instance: T): FeatureVector = {
-    if (isStaticProperty) {
+    if (isCacheable) {
       featureVectorCache.getOrElseUpdate(instance, featureVectorImpl(instance))
     } else {
       featureVectorImpl(instance)
     }
   }
 
+  /** Method to extract [[FeatureVector]] instance that is used by the classifiers implemented using LBJava.
+    *
+    * Note: This is an abstract method that should be implemented by specialized Property subclasses.
+    *
+    * @param instance Instance to extract the feature vector from.
+    * @return  Extracted Feature Vector.
+    */
   protected def featureVectorImpl(instance: T): FeatureVector
 
+  /** Type of the property's feature. This is used by LBJava's classifiers internally. */
   def outputType: String = "discrete"
 
-  def allowableValues: Array[String] = Array.empty[String]
+  /** List of allowable values for this Property. This is used by LBJava's classifiers internally. */
+  private[saul] def allowableValues: Array[String] = Array.empty[String]
 
-  def compositeChildren: Option[util.LinkedList[Classifier]] = None
+  /**
+    * This is used by LBJava internally. This is used to wrap multiple [[Classifier]] instances.
+    *
+    * @return List of child classifiers.
+    */
+  private[saul] def compositeChildren: Option[util.LinkedList[Classifier]] = None
 
+  /** Method to clear cached property (if caching is enabled) */
   private[saul] def clearCache(): Unit = {
-    if (isStaticProperty) {
+    if (isCacheable) {
       featureVectorCache.clear()
     }
   }

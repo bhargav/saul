@@ -80,7 +80,9 @@ class Node[T <: AnyRef](val keyFunc: T => Any = (x: T) => x, val tag: ClassTag[T
   }
 
   def clear(): Unit = {
+    // Clear property caches
     properties.foreach(_.clearCache())
+    clearPropertyCache()
 
     collection.clear
     trainingSet.clear
@@ -316,7 +318,7 @@ class Node[T <: AnyRef](val keyFunc: T => Any = (x: T) => x, val tag: ClassTag[T
   }
 
   /** list of hashmaps used inside properties for caching sensor values */
-  final val perIterationCachePropertyList = new ListBuffer[Property[_]]()
+  private[saul] final val perIterationCachePropertyList = new ListBuffer[Property[_]]()
 
   def clearPropertyCache(): Unit = {
     if (perIterationCachePropertyList.nonEmpty) {
