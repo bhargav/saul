@@ -192,7 +192,7 @@ trait DataModel extends Logging {
     def apply(f: T => Boolean)(implicit tag: ClassTag[T]): BooleanProperty[T] = {
       val a = new BooleanProperty[T](name, f) with NodeProperty[T] {
         override def node: Node[T] = papply.node
-        override val isStaticProperty: Boolean = isStatic
+        override val isStaticProperty: Boolean = isStatic || cache
       }
 
       // Property value will only be cached during a single training/testing iteration
@@ -208,12 +208,12 @@ trait DataModel extends Logging {
       val a = if (ordered) {
         new RealArrayProperty[T](name, newF) with NodeProperty[T] {
           override def node: Node[T] = papply.node
-          override val isStaticProperty: Boolean = isStatic
+          override val isStaticProperty: Boolean = isStatic || cache
         }
       } else {
         new RealGenProperty[T](name, newF) with NodeProperty[T] {
           override def node: Node[T] = papply.node
-          override val isStaticProperty: Boolean = isStatic
+          override val isStaticProperty: Boolean = isStatic || cache
         }
       }
 
@@ -230,7 +230,7 @@ trait DataModel extends Logging {
       val newF: T => Double = { t => f(t).toDouble }
       val a = new RealProperty[T](name, newF) with NodeProperty[T] {
         override def node: Node[T] = papply.node
-        override val isStaticProperty: Boolean = isStatic
+        override val isStaticProperty: Boolean = isStatic || cache
       }
 
       // Property value will only be cached during a single training/testing iteration
@@ -246,7 +246,7 @@ trait DataModel extends Logging {
       d3: DummyImplicit): RealCollectionProperty[T] = {
       val a = new RealCollectionProperty[T](name, f, ordered) with NodeProperty[T] {
         override def node: Node[T] = papply.node
-        override val isStaticProperty: Boolean = isStatic
+        override val isStaticProperty: Boolean = isStatic || cache
       }
 
       // Property value will only be cached during a single training/testing iteration
@@ -262,7 +262,7 @@ trait DataModel extends Logging {
       d4: DummyImplicit): RealProperty[T] = {
       val a = new RealProperty[T](name, f) with NodeProperty[T] {
         override def node: Node[T] = papply.node
-        override val isStaticProperty: Boolean = isStatic
+        override val isStaticProperty: Boolean = isStatic || cache
       }
 
       // Property value will only be cached during a single training/testing iteration
@@ -278,7 +278,7 @@ trait DataModel extends Logging {
       d4: DummyImplicit, d5: DummyImplicit): DiscreteProperty[T] = {
       val a = new DiscreteProperty[T](name, f, None) with NodeProperty[T] {
         override def node: Node[T] = papply.node
-        override val isStaticProperty: Boolean = isStatic
+        override val isStaticProperty: Boolean = isStatic || cache
       }
 
       // Property value will only be cached during a single training/testing iteration
@@ -294,7 +294,7 @@ trait DataModel extends Logging {
       d4: DummyImplicit, d5: DummyImplicit, d6: DummyImplicit): DiscreteCollectionProperty[T] = {
       val a = new DiscreteCollectionProperty[T](name, f, !ordered) with NodeProperty[T] {
         override def node: Node[T] = papply.node
-        override val isStaticProperty: Boolean = isStatic
+        override val isStaticProperty: Boolean = isStatic || cache
       }
 
       // Property value will only be cached during a single training/testing iteration
@@ -312,7 +312,7 @@ trait DataModel extends Logging {
       val r = range.toList
       val a = new DiscreteProperty[T](name, f, Some(r)) with NodeProperty[T] {
         override def node: Node[T] = papply.node
-        override val isStaticProperty: Boolean = isStatic
+        override val isStaticProperty: Boolean = isStatic || cache
       }
 
       // Property value will only be cached during a single training/testing iteration
