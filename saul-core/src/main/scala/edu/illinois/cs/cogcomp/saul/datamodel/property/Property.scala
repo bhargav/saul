@@ -31,13 +31,13 @@ trait Property[T] {
 
   def apply(instance: T): S = sensor(instance)
 
-  val isCachingEnabled = false
+  private[saul] val isStaticProperty = false
 
   /** WeakHashMap instance to cache feature vectors */
   private[Property] lazy val featureVectorCache = new mutable.WeakHashMap[T, FeatureVector]()
 
   final def featureVector(instance: T): FeatureVector = {
-    if (isCachingEnabled) {
+    if (isStaticProperty) {
       featureVectorCache.getOrElseUpdate(instance, featureVectorImpl(instance))
     } else {
       featureVectorImpl(instance)
@@ -51,6 +51,12 @@ trait Property[T] {
   def allowableValues: Array[String] = Array.empty[String]
 
   def compositeChildren: Option[util.LinkedList[Classifier]] = None
+
+  private[saul] def clearCache(): Unit = {
+    if (isStaticProperty) {
+      featureVectorCache.clear()
+    }
+  }
 }
 
 object Property {

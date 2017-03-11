@@ -313,12 +313,12 @@ class Node[T <: AnyRef](val keyFunc: T => Any = (x: T) => x, val tag: ClassTag[T
   }
 
   /** list of hashmaps used inside properties for caching sensor values */
-  final val propertyCacheList = new ListBuffer[MutableHashMap[_, Any]]()
+  final val perIterationCachePropertyList = new ListBuffer[Property[_]]()
 
   def clearPropertyCache(): Unit = {
-    if (propertyCacheList.nonEmpty) {
-      logger.info("clean property cache: cleaning " + propertyCacheList.size + " maps")
-      propertyCacheList.foreach(_.clear)
+    if (perIterationCachePropertyList.nonEmpty) {
+      logger.info("clean property cache: cleaning " + perIterationCachePropertyList.size + " maps")
+      perIterationCachePropertyList.foreach(_.clearCache())
     }
   }
 }
