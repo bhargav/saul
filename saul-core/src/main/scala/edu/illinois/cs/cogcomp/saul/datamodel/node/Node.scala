@@ -16,7 +16,7 @@ import edu.illinois.cs.cogcomp.saul.util.Logging
 import java.util.concurrent.atomic.AtomicInteger
 
 import scala.collection.mutable
-import scala.collection.mutable.{ ArrayBuffer, ListBuffer, HashMap => MutableHashMap, LinkedHashSet => MutableSet, Map => MutableMap }
+import scala.collection.mutable.{ ArrayBuffer, ListBuffer, LinkedHashSet => MutableSet, Map => MutableMap }
 import scala.reflect.ClassTag
 
 trait NodeProperty[T <: AnyRef] extends Property[T] {
@@ -83,8 +83,11 @@ class Node[T <: AnyRef](val keyFunc: T => Any = (x: T) => x, val tag: ClassTag[T
     collection.clear
     trainingSet.clear
     testingSet.clear
-    for (e <- incoming) e.clear
-    for (e <- outgoing) e.clear
+
+    incoming.foreach(_.clear())
+    outgoing.foreach(_.clear())
+
+    clearPropertyCache(purgeStaticProperties = true)
   }
 
   private var count: AtomicInteger = new AtomicInteger()
@@ -312,13 +315,23 @@ class Node[T <: AnyRef](val keyFunc: T => Any = (x: T) => x, val tag: ClassTag[T
     }
   }
 
-  /** list of hashmaps used inside properties for caching sensor values */
-  final val propertyCacheList = new ListBuffer[MutableHashMap[_, Any]]()
+  /** Following list of hashmaps are used to cache property values */
 
-  def clearPropertyCache(): Unit = {
-    if (propertyCacheList.nonEmpty) {
-      logger.info("clean property cache: cleaning " + propertyCacheList.size + " maps")
-      propertyCacheList.foreach(_.clear)
+  //  Caching properties withing a single training iteration.
+  private[saul] final val perIterationPropertyCacheList = new ListBuffer[mutable.WeakHashMap[_, Any]]()
+
+  //  Caching static properties which do not change during the lifetime of the DataModel.
+  private[saul] final val staticPropertyCacheList = new ListBuffer[mutable.WeakHashMap[_, Any]]()
+
+  def clearPropertyCache(purgeStaticProperties: Boolean = false): Unit = {
+    if (perIterationPropertyCacheList.nonEmpty) {
+      logger.info("clean per-iteration property cache: cleaning " + perIterationPropertyCacheList.size + " maps")
+      perIterationPropertyCacheList.foreach(_.clear)
+    }
+
+    if (purgeStaticProperties && staticPropertyCacheList.nonEmpty) {
+      logger.info("clean static property cache: cleaning " + staticPropertyCacheList.size + " maps")
+      staticPropertyCacheList.foreach(_.clear)
     }
   }
 }

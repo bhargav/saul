@@ -14,6 +14,7 @@ import edu.illinois.cs.cogcomp.saul.datamodel.property.features.real._
 import edu.illinois.cs.cogcomp.saul.datamodel.property.{ EvaluatedProperty, Property }
 import edu.illinois.cs.cogcomp.saul.util.Logging
 
+import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.reflect.ClassTag
 
@@ -160,13 +161,24 @@ trait DataModel extends Logging {
     e
   }
 
-  class PropertyApply[T <: AnyRef] private[DataModel] (val node: Node[T], name: String, cache: Boolean, ordered: Boolean) {
+  class PropertyApply[T <: AnyRef] private[DataModel] (
+                                                        val node: Node[T],
+                                                        name: String,
+                                                        cache: Boolean,
+                                                        ordered: Boolean,
+                                                        isStatic: Boolean) {
     papply =>
 
     // TODO(danielk): make the hashmaps immutable
     lazy val propertyCacheMap = {
-      val map = collection.mutable.HashMap[T, Any]()
-      node.propertyCacheList += map
+      val map = mutable.WeakHashMap[T, Any]()
+
+      if (isStatic) {
+        node.staticPropertyCacheList += map
+      } else if (cache) {
+        node.perIterationPropertyCacheList += map
+      }
+
       map
     }
 
@@ -272,8 +284,33 @@ trait DataModel extends Logging {
     }
   }
 
-  def property[T <: AnyRef](node: Node[T], name: String = "prop" + properties.size, cache: Boolean = false, ordered: Boolean = false) =
-    new PropertyApply[T](node, name, cache, ordered)
+  /**
+    * Function to create a new [[Property]] instance inside a DataModel.
+    *
+    * Note:
+    * 1) The `cache` parameter is used to cache a Property value within a single training iteration. It's use-case is
+    *    primarily for scenarios where the property value depends on a recursive Learnable evaluation.
+    * 2) The `isStatic` parameter is used to cache a Property value which is not expected to change during the entire
+    *    training process.
+    * 3) Marking a property as `isStatic` supersedes the `cache` preference. Static Properties are always cached
+    *    regardless of the value of `cache` parameter.
+    *
+    * @param node [[Node]] instance to add the current property to.
+    * @param name Name of the property.
+    * @param cache Boolean indicating if this property should be cached during training.
+    * @param ordered Denoting if the order among the values in this property needs to be preserved. Only applies to
+    *                collection-based properties.
+    * @param isStatic Boolean indicating if this property has a static value, which does not change during training.
+    *                 Caching static properties saves redundant calculation of the Property's value.
+    * @tparam T Data type of the value represented by the property. This is inferred from the [[Node]] instance.
+    * @return Property instance wrapped in a helper class [[PropertyApply]].
+    */
+  def property[T <: AnyRef](node: Node[T],
+                            name: String = "prop" + properties.size,
+                            cache: Boolean = false,
+                            ordered: Boolean = false,
+                            isStatic: Boolean = false) =
+    new PropertyApply[T](node, name, cache, ordered, isStatic)
 
   /** Methods for caching Data Model */
   var hasDerivedInstances = false
