@@ -48,7 +48,7 @@ val pos = property(token, isStatic = true) {
 The first time that a property is called with a specific value, it would you remember the corresponding output, 
 so next time it just looks up the value from the cache. 
 
-**Note:** `isStatic` caches the value for the lifetime of the training process.
+**Note:** `isStatic` caches the value for the lifetime of the training process. Make sure you have enough free memory (RAM) available to store the cache in-memory.
 
 If you want the value to be cache only during a single iteration, use the `cache` parameter. The `cache` parameter allows the value to be cached within a training/testing iteration. This is useful if you one of your features depends on evaluation of a Classifier on other instances as well. This recursive evaluation of the Classifier might be expensive and caching would speed-up performance. Look at a sample usage of this parameter in the [POSTagging Example](../../saul-examples/src/main/scala/edu/illinois/cs/cogcomp/saulexamples/nlp/POSTagger/POSDataModel.scala#L66).
 
