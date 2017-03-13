@@ -183,12 +183,13 @@ trait DataModel extends Logging {
     */
   class PropertyApply[T <: AnyRef] private[DataModel] (val node: Node[T],
                                                        name: String,
+                                                       cache: Boolean,
                                                        ordered: Boolean,
                                                        isStatic: Boolean) {
     papply =>
 
     private lazy val propertyCacheMap = {
-      val map = collection.mutable.WeakHashMap[T, _]()
+      val map = collection.mutable.WeakHashMap[T, Any]()
 
       if (isStatic) {
         node.staticSensorCache.append(map)
@@ -209,7 +210,7 @@ trait DataModel extends Logging {
 
       val a = new BooleanProperty[T](name, cachedSensor) with NodeProperty[T] {
         override def node: Node[T] = papply.node
-        override val isStatic: Boolean = isStatic
+        override val isStatic: Boolean = papply.isStatic
       }
 
       papply.node.properties += a
@@ -225,12 +226,12 @@ trait DataModel extends Logging {
       val a = if (ordered) {
         new RealArrayProperty[T](name, cachedSensor) with NodeProperty[T] {
           override def node: Node[T] = papply.node
-          override val isStatic: Boolean = isStatic
+          override val isStatic: Boolean = papply.isStatic
         }
       } else {
         new RealGenProperty[T](name, cachedSensor) with NodeProperty[T] {
           override def node: Node[T] = papply.node
-          override val isStatic: Boolean = isStatic
+          override val isStatic: Boolean = papply.isStatic
         }
       }
 
@@ -247,7 +248,7 @@ trait DataModel extends Logging {
 
       val a = new RealProperty[T](name, cachedSensor) with NodeProperty[T] {
         override def node: Node[T] = papply.node
-        override val isStatic: Boolean = isStatic
+        override val isStatic: Boolean = papply.isStatic
       }
 
       papply.node.properties += a
@@ -263,7 +264,7 @@ trait DataModel extends Logging {
 
       val a = new RealCollectionProperty[T](name, cachedSensor, ordered) with NodeProperty[T] {
         override def node: Node[T] = papply.node
-        override val isStatic: Boolean = isStatic
+        override val isStatic: Boolean = papply.isStatic
       }
 
       papply.node.properties += a
@@ -279,7 +280,7 @@ trait DataModel extends Logging {
 
       val a = new RealProperty[T](name, cachedSensor) with NodeProperty[T] {
         override def node: Node[T] = papply.node
-        override val isStatic: Boolean = isStatic
+        override val isStatic: Boolean = papply.isStatic
       }
 
       papply.node.properties += a
@@ -295,7 +296,7 @@ trait DataModel extends Logging {
 
       val a = new DiscreteProperty[T](name, cachedSensor, None) with NodeProperty[T] {
         override def node: Node[T] = papply.node
-        override val isStatic: Boolean = isStatic
+        override val isStatic: Boolean = papply.isStatic
       }
 
       papply.node.properties += a
@@ -312,7 +313,7 @@ trait DataModel extends Logging {
 
       val a = new DiscreteCollectionProperty[T](name, cachedSensor, !ordered) with NodeProperty[T] {
         override def node: Node[T] = papply.node
-        override val isStatic: Boolean = isStatic
+        override val isStatic: Boolean = papply.isStatic
       }
 
       papply.node.properties += a
@@ -330,7 +331,7 @@ trait DataModel extends Logging {
       val r = range.toList
       val a = new DiscreteProperty[T](name, cachedSensor, Some(r)) with NodeProperty[T] {
         override def node: Node[T] = papply.node
-        override val isStatic: Boolean = isStatic
+        override val isStatic: Boolean = papply.isStatic
       }
 
       papply.node.properties += a
