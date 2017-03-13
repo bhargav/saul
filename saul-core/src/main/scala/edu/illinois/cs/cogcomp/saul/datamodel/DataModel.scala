@@ -174,7 +174,6 @@ trait DataModel extends Logging {
     *
     * @param node [[Node]] instance to add the current property to.
     * @param name Name of the property.
-    * @param cache Boolean indicating if this property should be cached during training.
     * @param ordered Denoting if the order among the values in this property needs to be preserved. Only applies to
     *                collection-based properties.
     * @param isStatic Boolean indicating if this property has a static value, which does not change during training.
@@ -184,41 +183,56 @@ trait DataModel extends Logging {
     */
   class PropertyApply[T <: AnyRef] private[DataModel] (val node: Node[T],
                                                        name: String,
-                                                       cache: Boolean,
                                                        ordered: Boolean,
                                                        isStatic: Boolean) {
     papply =>
 
-    def apply(f: T => Boolean)(implicit tag: ClassTag[T]): BooleanProperty[T] = {
-      val a = new BooleanProperty[T](name, f) with NodeProperty[T] {
-        override def node: Node[T] = papply.node
-        override val isCacheable: Boolean = isStatic || cache
+    private lazy val propertyCacheMap = {
+      val map = collection.mutable.WeakHashMap[T, _]()
+
+      if (isStatic) {
+        node.staticSensorCache.append(map)
+      } else {
+        node.perIterationSensorCache.append(map)
       }
 
-      // Property value will only be cached during a single training/testing iteration
-      if (cache && !isStatic) node.perIterationCachePropertyList.append(a)
+      map
+    }
+
+    private def getCachedSensor[U](sensor: T => U): (T => U) = { input: T =>
+      propertyCacheMap.getOrElseUpdate(input, sensor(input)).asInstanceOf[U]
+    }
+
+    def apply(sensor: T => Boolean)(implicit tag: ClassTag[T]): BooleanProperty[T] = {
+      // Sensor value will only be cached during a single training/testing iteration
+      def cachedSensor = getCachedSensor(sensor)
+
+      val a = new BooleanProperty[T](name, cachedSensor) with NodeProperty[T] {
+        override def node: Node[T] = papply.node
+        override val isStatic: Boolean = isStatic
+      }
 
       papply.node.properties += a
       properties += a
       a
     }
 
-    def apply(f: T => List[Int])(implicit tag: ClassTag[T], d: DummyImplicit): RealPropertyCollection[T] = {
-      val newF: T => List[Double] = { t => f(t).map(_.toDouble) }
+    def apply(sensor: T => List[Int])(implicit tag: ClassTag[T], d: DummyImplicit): RealPropertyCollection[T] = {
+      // Sensor value will only be cached during a single training/testing iteration
+      def newSensor: T => List[Double] = sensor.andThen(_.map(_.toDouble)) // Int is not a supported primitive feature type in LBJava
+      def cachedSensor = getCachedSensor(newSensor)
+
       val a = if (ordered) {
-        new RealArrayProperty[T](name, newF) with NodeProperty[T] {
+        new RealArrayProperty[T](name, cachedSensor) with NodeProperty[T] {
           override def node: Node[T] = papply.node
-          override val isCacheable: Boolean = isStatic || cache
+          override val isStatic: Boolean = isStatic
         }
       } else {
-        new RealGenProperty[T](name, newF) with NodeProperty[T] {
+        new RealGenProperty[T](name, cachedSensor) with NodeProperty[T] {
           override def node: Node[T] = papply.node
-          override val isCacheable: Boolean = isStatic || cache
+          override val isStatic: Boolean = isStatic
         }
       }
-
-      // Property value will only be cached during a single training/testing iteration
-      if (cache && !isStatic) node.perIterationCachePropertyList.append(a)
 
       papply.node.properties += a
       properties += a
@@ -226,15 +240,15 @@ trait DataModel extends Logging {
     }
 
     /** Discrete sensor feature with range, same as real name in lbjava */
-    def apply(f: T => Int)(implicit tag: ClassTag[T], d1: DummyImplicit, d2: DummyImplicit): RealProperty[T] = {
-      val newF: T => Double = { t => f(t).toDouble }
-      val a = new RealProperty[T](name, newF) with NodeProperty[T] {
-        override def node: Node[T] = papply.node
-        override val isCacheable: Boolean = isStatic || cache
-      }
+    def apply(sensor: T => Int)(implicit tag: ClassTag[T], d1: DummyImplicit, d2: DummyImplicit): RealProperty[T] = {
+      // Sensor value will only be cached during a single training/testing iteration
+      def newSensor: T => Double = sensor.andThen(_.toDouble) // Int is not a supported primitive feature type in LBJava
+      def cachedSensor = getCachedSensor(newSensor)
 
-      // Property value will only be cached during a single training/testing iteration
-      if (cache && !isStatic) node.perIterationCachePropertyList.append(a)
+      val a = new RealProperty[T](name, cachedSensor) with NodeProperty[T] {
+        override def node: Node[T] = papply.node
+        override val isStatic: Boolean = isStatic
+      }
 
       papply.node.properties += a
       properties += a
@@ -242,15 +256,15 @@ trait DataModel extends Logging {
     }
 
     /** Discrete sensor feature with range, same as real% and real[] in lbjava */
-    def apply(f: T => List[Double])(implicit tag: ClassTag[T], d1: DummyImplicit, d2: DummyImplicit,
+    def apply(sensor: T => List[Double])(implicit tag: ClassTag[T], d1: DummyImplicit, d2: DummyImplicit,
       d3: DummyImplicit): RealCollectionProperty[T] = {
-      val a = new RealCollectionProperty[T](name, f, ordered) with NodeProperty[T] {
-        override def node: Node[T] = papply.node
-        override val isCacheable: Boolean = isStatic || cache
-      }
+      // Sensor value will only be cached during a single training/testing iteration
+      def cachedSensor = getCachedSensor(sensor)
 
-      // Property value will only be cached during a single training/testing iteration
-      if (cache && !isStatic) node.perIterationCachePropertyList.append(a)
+      val a = new RealCollectionProperty[T](name, cachedSensor, ordered) with NodeProperty[T] {
+        override def node: Node[T] = papply.node
+        override val isStatic: Boolean = isStatic
+      }
 
       papply.node.properties += a
       properties += a
@@ -258,15 +272,15 @@ trait DataModel extends Logging {
     }
 
     /** Discrete sensor feature with range, same as real name in lbjava */
-    def apply(f: T => Double)(implicit tag: ClassTag[T], d1: DummyImplicit, d2: DummyImplicit, d3: DummyImplicit,
+    def apply(sensor: T => Double)(implicit tag: ClassTag[T], d1: DummyImplicit, d2: DummyImplicit, d3: DummyImplicit,
       d4: DummyImplicit): RealProperty[T] = {
-      val a = new RealProperty[T](name, f) with NodeProperty[T] {
-        override def node: Node[T] = papply.node
-        override val isCacheable: Boolean = isStatic || cache
-      }
+      // Sensor value will only be cached during a single training/testing iteration
+      def cachedSensor = getCachedSensor(sensor)
 
-      // Property value will only be cached during a single training/testing iteration
-      if (cache && !isStatic) node.perIterationCachePropertyList.append(a)
+      val a = new RealProperty[T](name, cachedSensor) with NodeProperty[T] {
+        override def node: Node[T] = papply.node
+        override val isStatic: Boolean = isStatic
+      }
 
       papply.node.properties += a
       properties += a
@@ -274,15 +288,15 @@ trait DataModel extends Logging {
     }
 
     /** Discrete feature without range, same as discrete SpamLabel in lbjava */
-    def apply(f: T => String)(implicit tag: ClassTag[T], d1: DummyImplicit, d2: DummyImplicit, d3: DummyImplicit,
+    def apply(sensor: T => String)(implicit tag: ClassTag[T], d1: DummyImplicit, d2: DummyImplicit, d3: DummyImplicit,
       d4: DummyImplicit, d5: DummyImplicit): DiscreteProperty[T] = {
-      val a = new DiscreteProperty[T](name, f, None) with NodeProperty[T] {
-        override def node: Node[T] = papply.node
-        override val isCacheable: Boolean = isStatic || cache
-      }
+      // Sensor value will only be cached during a single training/testing iteration
+      def cachedSensor = getCachedSensor(sensor)
 
-      // Property value will only be cached during a single training/testing iteration
-      if (cache && !isStatic) node.perIterationCachePropertyList.append(a)
+      val a = new DiscreteProperty[T](name, cachedSensor, None) with NodeProperty[T] {
+        override def node: Node[T] = papply.node
+        override val isStatic: Boolean = isStatic
+      }
 
       papply.node.properties += a
       properties += a
@@ -290,15 +304,16 @@ trait DataModel extends Logging {
     }
 
     /** Discrete array feature with range, same as discrete[] and discrete% in lbjava */
-    def apply(f: T => List[String])(implicit tag: ClassTag[T], d1: DummyImplicit, d2: DummyImplicit, d3: DummyImplicit,
-      d4: DummyImplicit, d5: DummyImplicit, d6: DummyImplicit): DiscreteCollectionProperty[T] = {
-      val a = new DiscreteCollectionProperty[T](name, f, !ordered) with NodeProperty[T] {
-        override def node: Node[T] = papply.node
-        override val isCacheable: Boolean = isStatic || cache
-      }
+    def apply(sensor: T => List[String])(implicit tag: ClassTag[T], d1: DummyImplicit, d2: DummyImplicit,
+                                         d3: DummyImplicit, d4: DummyImplicit, d5: DummyImplicit,
+                                         d6: DummyImplicit): DiscreteCollectionProperty[T] = {
+      // Sensor value will only be cached during a single training/testing iteration
+      def cachedSensor = getCachedSensor(sensor)
 
-      // Property value will only be cached during a single training/testing iteration
-      if (cache && !isStatic) node.perIterationCachePropertyList.append(a)
+      val a = new DiscreteCollectionProperty[T](name, cachedSensor, !ordered) with NodeProperty[T] {
+        override def node: Node[T] = papply.node
+        override val isStatic: Boolean = isStatic
+      }
 
       papply.node.properties += a
       properties += a
@@ -306,17 +321,17 @@ trait DataModel extends Logging {
     }
 
     /** Discrete feature with range, same as discrete{"spam", "ham"} SpamLabel in lbjava */
-    def apply(range: String*)(f: T => String)(implicit tag: ClassTag[T], d1: DummyImplicit, d2: DummyImplicit, d3: DummyImplicit,
-      d4: DummyImplicit, d5: DummyImplicit, d6: DummyImplicit,
-      d7: DummyImplicit): DiscreteProperty[T] = {
-      val r = range.toList
-      val a = new DiscreteProperty[T](name, f, Some(r)) with NodeProperty[T] {
-        override def node: Node[T] = papply.node
-        override val isCacheable: Boolean = isStatic || cache
-      }
-
+    def apply(range: String*)(sensor: T => String)(implicit tag: ClassTag[T], d1: DummyImplicit, d2: DummyImplicit,
+                                                   d3: DummyImplicit, d4: DummyImplicit, d5: DummyImplicit,
+                                                   d6: DummyImplicit, d7: DummyImplicit): DiscreteProperty[T] = {
       // Property value will only be cached during a single training/testing iteration
-      if (cache && !isStatic) node.perIterationCachePropertyList.append(a)
+      def cachedSensor = getCachedSensor(sensor)
+
+      val r = range.toList
+      val a = new DiscreteProperty[T](name, cachedSensor, Some(r)) with NodeProperty[T] {
+        override def node: Node[T] = papply.node
+        override val isStatic: Boolean = isStatic
+      }
 
       papply.node.properties += a
       properties += a
@@ -327,17 +342,12 @@ trait DataModel extends Logging {
   /**
     * Function to create a new [[Property]] instance inside a DataModel.
     *
-    * Note:
-    * 1) The `cache` parameter is used to cache a Property value within a single training iteration. It's use-case is
-    *    primarily for scenarios where the property value depends on a recursive Learnable evaluation.
-    * 2) The `isStatic` parameter is used to cache a Property value which is not expected to change during the entire
-    *    training process.
-    * 3) Marking a property as `isStatic` supersedes the `cache` preference. Static Properties are always cached
-    *    regardless of the value of `cache` parameter.
+    * Note: The `isStatic` parameter is used to cache a Property value which is not expected to change during the
+    *       entire training process. The `cache` parameter is deprecated and will be removed in a future version.
     *
     * @param node [[Node]] instance to add the current property to.
     * @param name Name of the property.
-    * @param cache Boolean indicating if this property should be cached during training.
+    * @param cache DEPRECATED field now. If you want to persist feature values during training, use `isStatic` instead.
     * @param ordered Denoting if the order among the values in this property needs to be preserved. Only applies to
     *                collection-based properties.
     * @param isStatic Boolean indicating if this property has a static value, which does not change during training.
@@ -350,7 +360,7 @@ trait DataModel extends Logging {
                             cache: Boolean = false,
                             ordered: Boolean = false,
                             isStatic: Boolean = false) =
-    new PropertyApply[T](node, name, isStatic = isStatic, cache = cache, ordered = ordered)
+    new PropertyApply[T](node, name, ordered = ordered, isStatic = isStatic)
 
   /** Methods for caching Data Model */
   var hasDerivedInstances = false

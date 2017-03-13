@@ -234,7 +234,7 @@ abstract class Learnable[T <: AnyRef](val node: Node[T], val parameters: Paramet
       if (remainingIteration % 10 == 0)
         logger.info(s"Training: $remainingIteration iterations remain.")
 
-      node.clearPropertyCache()
+      node.clearPropertyCache(purgeStaticCache = false)
       data.foreach(classifier.learn)
     })
 

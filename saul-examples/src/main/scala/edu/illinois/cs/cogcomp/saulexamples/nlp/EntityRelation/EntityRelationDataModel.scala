@@ -30,49 +30,49 @@ object EntityRelationDataModel extends DataModel {
   pairTo2ndArg.addSensor(relationToSecondArg_MatchingSensor _)
 
   /** Properties */
-  val pos = property(tokens) {
+  val pos = property(tokens, isStatic = true) {
     t: ConllRawToken => t.POS
   }
 
-  val word = property(tokens) {
+  val word = property(tokens, isStatic = true) {
     t: ConllRawToken => t.getWords(false).toList
   }
 
-  val phrase = property(tokens) {
+  val phrase = property(tokens, isStatic = true) {
     t: ConllRawToken => t.phrase
   }
 
-  val tokenSurface = property(tokens) {
+  val tokenSurface = property(tokens, isStatic = true) {
     t: ConllRawToken => t.getWords(false).mkString(" ")
   }
 
-  val containsSubPhraseMent = property(tokens) {
+  val containsSubPhraseMent = property(tokens, isStatic = true) {
     t: ConllRawToken => t.getWords(false).exists(_.contains("ment")).toString
   }
 
-  val containsSubPhraseIng = property(tokens) {
+  val containsSubPhraseIng = property(tokens, isStatic = true) {
     t: ConllRawToken => t.getWords(false).exists(_.contains("ing")).toString
   }
 
-  val containsInCityList = property(tokens, cache = true) {
+  val containsInCityList = property(tokens, isStatic = true) {
     t: ConllRawToken => cityGazetSensor.isContainedIn(t)
   }
 
-  val containsInPersonList = property(tokens, cache = true) {
+  val containsInPersonList = property(tokens, isStatic = true) {
     t: ConllRawToken => personGazetSensor.containsAny(t)
   }
 
-  val wordLen = property(tokens) {
+  val wordLen = property(tokens, isStatic = true) {
     t: ConllRawToken => t.getLength
   }
 
-  val posWindowFeature = property(tokens, "POSWindow") { token: ConllRawToken =>
+  val posWindowFeature = property(tokens, "POSWindow", isStatic = true) { token: ConllRawToken =>
     tokens.getWithWindow(token, -2, 2)
       .flatten
       .map({ token: ConllRawToken => pos(token) })
   }
 
-  val relFeature = property(pairs) {
+  val relFeature = property(pairs, isStatic = true) {
     token: ConllRelation =>
       "w1-word-" + token.e1.phrase :: "w2-word-" + token.e2.phrase ::
         "w1-pos-" + token.e1.POS :: "w2-pos-" + token.e2.POS ::
@@ -85,7 +85,7 @@ object EntityRelationDataModel extends DataModel {
         Nil
   }
 
-  val relPos = property(pairs) {
+  val relPos = property(pairs, isStatic = true) {
     rela: ConllRelation =>
       val e1 = rela.e1
       val e2 = rela.e2
@@ -113,11 +113,11 @@ object EntityRelationDataModel extends DataModel {
   }
 
   /** Labeler Properties  */
-  val entityType = property(tokens) {
+  val entityType = property(tokens, isStatic = true) {
     t: ConllRawToken => t.entType
   }
 
-  val relationType = property(pairs) {
+  val relationType = property(pairs, isStatic = true) {
     r: ConllRelation => r.relType
   }
 

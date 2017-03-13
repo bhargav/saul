@@ -25,13 +25,10 @@ trait Property[T] {
   private[property] val containingPackage = "LBP_Package"
 
   /** Boolean denoting if a property's value (feature) should be cached in-memory to prevent redundant evaluations */
-  private[saul] val isCacheable: Boolean = false
+  private[saul] val isStatic: Boolean = false
 
   /** WeakHashMap instance to cache feature vectors */
   private[Property] final lazy val featureVectorCache = mutable.WeakHashMap[T, FeatureVector]()
-
-  /** WeakHashMap instance to cache sensor values */
-  private[Property] final lazy val sensorValueCache = mutable.WeakHashMap[T, S]()
 
   /** ClassTag of the corresponding Node's instance type. */
   private[saul] val tag: ClassTag[T]
@@ -50,13 +47,7 @@ trait Property[T] {
     * @param instance Instance to extract the feature from.
     * @return Extracted feature.
     */
-  final def apply(instance: T): S = {
-    if (isCacheable) {
-      sensorValueCache.getOrElseUpdate(instance, sensor(instance))
-    } else {
-      sensor(instance)
-    }
-  }
+  def apply(instance: T): S = sensor(instance)
 
   /** Method to extract [[FeatureVector]] instance that is used the classifiers implemented using LBJava.
     *
@@ -66,7 +57,7 @@ trait Property[T] {
     * @return Extracted Feature Vector.
     */
   final def featureVector(instance: T): FeatureVector = {
-    if (isCacheable) {
+    if (isStatic) {
       featureVectorCache.getOrElseUpdate(instance, featureVectorImpl(instance))
     } else {
       featureVectorImpl(instance)
@@ -97,9 +88,8 @@ trait Property[T] {
 
   /** Method to clear cached property (if caching is enabled) */
   private[saul] def clearCache(): Unit = {
-    if (isCacheable) {
+    if (isStatic) {
       featureVectorCache.clear()
-      sensorValueCache.clear()
     }
   }
 }

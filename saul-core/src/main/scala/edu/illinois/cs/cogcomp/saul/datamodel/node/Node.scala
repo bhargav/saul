@@ -318,12 +318,18 @@ class Node[T <: AnyRef](val keyFunc: T => Any = (x: T) => x, val tag: ClassTag[T
   }
 
   /** list of hashmaps used inside properties for caching sensor values */
-  private[saul] final val perIterationCachePropertyList = new ListBuffer[Property[_]]()
+  private[saul] final val perIterationSensorCache = new ListBuffer[mutable.WeakHashMap[T, _]]()
+  private[saul] final val staticSensorCache = new ListBuffer[mutable.WeakHashMap[T, _]]()
 
-  def clearPropertyCache(): Unit = {
-    if (perIterationCachePropertyList.nonEmpty) {
-      logger.info("clean property cache: cleaning " + perIterationCachePropertyList.size + " maps")
-      perIterationCachePropertyList.foreach(_.clearCache())
+  def clearPropertyCache(purgeStaticCache: Boolean = true): Unit = {
+    if (perIterationSensorCache.nonEmpty) {
+      logger.debug("clean per-iteration sensor cache: cleaning " + perIterationSensorCache.size + " maps")
+      perIterationSensorCache.foreach(_.clear())
+    }
+
+    if (purgeStaticCache && staticSensorCache.nonEmpty) {
+      logger.debug("clean static sensor cache: cleaning " + staticSensorCache.size + " maps")
+      staticSensorCache.foreach(_.clear())
     }
   }
 }

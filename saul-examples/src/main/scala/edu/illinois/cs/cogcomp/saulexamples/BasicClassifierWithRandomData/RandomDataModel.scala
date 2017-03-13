@@ -18,12 +18,12 @@ object RandomDataModel extends DataModel {
   val r = scala.util.Random
   r.setSeed(0)
 
-  val randomLabel = property(randomNode, cache = true) {
+  val randomLabel = property(randomNode, isStatic = true) {
     x: String =>
       (2 * (if (r.nextGaussian() > 0) 1 else 0) - 1).toString
   }
 
-  val randomProperty = property(randomNode, cache = true) {
+  val randomProperty = property(randomNode, isStatic = true) {
     x: String =>
       val p = List(2 * r.nextGaussian(), 0.5 * r.nextGaussian())
       val p1new = p(1) + randomLabel(x).toDouble

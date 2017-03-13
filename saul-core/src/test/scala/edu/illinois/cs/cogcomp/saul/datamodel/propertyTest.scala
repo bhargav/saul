@@ -71,7 +71,7 @@ object toyDataModel extends DataModel {
   val listIntPropertyArray = property(toys, "listInt") {
     x: toyClass => List(1, 3)
   }
-  val listIntPropertyGenerator = property(toys, "listInt", cache = false, ordered = true) {
+  val listIntPropertyGenerator = property(toys, "listInt", ordered = true) {
     x: toyClass => List(1, 3)
   }
 
@@ -84,7 +84,7 @@ object toyDataModel extends DataModel {
   val listDoublePropertyArray = property(toys, "listDouble") {
     x: toyClass => List(1.0, 2.0)
   }
-  val listDoublePropertyGenerator = property(toys, "listDouble", cache = false, ordered = true) {
+  val listDoublePropertyGenerator = property(toys, "listDouble", ordered = true) {
     x: toyClass => List(1.0, 2.0)
   }
 
@@ -97,7 +97,7 @@ object toyDataModel extends DataModel {
   val listStringPropertyArray = property(toys, "listString") {
     x: toyClass => List("listValue")
   }
-  val listStringPropertyGenerator = property(toys, "listString", cache = false, ordered = true) {
+  val listStringPropertyGenerator = property(toys, "listString", ordered = true) {
     x: toyClass => List("listValue")
   }
 
@@ -106,7 +106,7 @@ object toyDataModel extends DataModel {
     x: toyClass => "value"
   }
 
-  val stringPropertyWithCache = property(toys, "string", cache = true) {
+  val stringPropertyWithCache = property(toys, "string") {
     x: toyClass => "cachedValue"
   }
 

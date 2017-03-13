@@ -34,7 +34,7 @@ object POSDataModel extends DataModel {
     x.getTextAnnotation.getView(ViewNames.POS).getConstituentsCovering(x).get(0).getLabel
   }
 
-  val wordForm = property(tokens, "wordForm", cache = true) { x: Constituent =>
+  val wordForm = property(tokens, "wordForm") { x: Constituent =>
     val wordFormLabel = x.toString
     if (wordFormLabel.length == 1 && "([{".indexOf(wordFormLabel) != -1)
       "-LRB-"
@@ -43,11 +43,11 @@ object POSDataModel extends DataModel {
     else wordFormLabel
   }
 
-  val baselineTarget = property(tokens, "baselineTarget", cache = true) { x: Constituent =>
+  val baselineTarget = property(tokens, "baselineTarget") { x: Constituent =>
     BaselineClassifier(x)
   }
 
-  val labelOrBaseline = property(tokens, "labelOrBaseline", cache = true) { x: Constituent =>
+  val labelOrBaseline = property(tokens, "labelOrBaseline") { x: Constituent =>
     if (POSTaggerKnown.isTraining)
       POSLabel(x)
     else if (BaselineClassifier.classifier.observed(wordForm(x)))
@@ -55,7 +55,7 @@ object POSDataModel extends DataModel {
     else ""
   }
 
-  val labelOrBaselineU = property(tokens, "labelOrBaselineU", cache = true) { x: Constituent =>
+  val labelOrBaselineU = property(tokens, "labelOrBaselineU") { x: Constituent =>
     if (POSTaggerUnknown.isTraining)
       POSLabel(x)
     else if (BaselineClassifier.classifier.observed(wordForm(x)))
@@ -63,7 +63,7 @@ object POSDataModel extends DataModel {
     else ""
   }
 
-  val labelOneBefore = property(tokens, "labelOneBefore", cache = true) { x: Constituent =>
+  val labelOneBefore = property(tokens, "labelOneBefore") { x: Constituent =>
     val cons = (tokens(x) ~> constituentBefore).head
     // make sure the spans are different. Otherwise it is not valid
     if (cons.getSpan != x.getSpan) {
@@ -74,7 +74,7 @@ object POSDataModel extends DataModel {
     } else ""
   }
 
-  val labelOneBeforeU = property(tokens, "labelOneBeforeU", cache = true) { x: Constituent =>
+  val labelOneBeforeU = property(tokens, "labelOneBeforeU") { x: Constituent =>
     val cons = (tokens(x) ~> constituentBefore).head
     // make sure the spans are different. Otherwise it is not valid
     if (cons.getSpan != x.getSpan) {
@@ -85,7 +85,7 @@ object POSDataModel extends DataModel {
     } else ""
   }
 
-  val labelTwoBefore = property(tokens, "labelTwoBefore", cache = true) { x: Constituent =>
+  val labelTwoBefore = property(tokens, "labelTwoBefore") { x: Constituent =>
     val cons = (tokens(x) ~> constituentTwoBefore).head
     // make sure the spans are different. Otherwise it is not valid
     if (cons.getSpan != x.getSpan) {
@@ -97,7 +97,7 @@ object POSDataModel extends DataModel {
     } else ""
   }
 
-  val labelTwoBeforeU = property(tokens, "labelTwoBeforeU", cache = true) { x: Constituent =>
+  val labelTwoBeforeU = property(tokens, "labelTwoBeforeU") { x: Constituent =>
     val cons = (tokens(x) ~> constituentTwoBefore).head
     // make sure the spans are different. Otherwise it is not valid
     if (cons.getSpan != x.getSpan) {
@@ -109,7 +109,7 @@ object POSDataModel extends DataModel {
     } else ""
   }
 
-  val labelOneAfter = property(tokens, "labelOneAfter", cache = true) {
+  val labelOneAfter = property(tokens, "labelOneAfter") {
     x: Constituent =>
       val cons = (tokens(x) ~> constituentAfter).head
       // make sure the spans are different. Otherwise it is not valid
@@ -118,7 +118,7 @@ object POSDataModel extends DataModel {
       } else ""
   }
 
-  val labelOneAfterU = property(tokens, "labelOneAfterU", cache = true) { x: Constituent =>
+  val labelOneAfterU = property(tokens, "labelOneAfterU") { x: Constituent =>
     val cons = (tokens(x) ~> constituentAfter).head
     // make sure the spans are different. Otherwise it is not valid
     if (cons.getSpan != x.getSpan) {
@@ -126,7 +126,7 @@ object POSDataModel extends DataModel {
     } else ""
   }
 
-  val labelTwoAfter = property(tokens, "labelTwoAfter", cache = true) { x: Constituent =>
+  val labelTwoAfter = property(tokens, "labelTwoAfter") { x: Constituent =>
     val cons = (tokens(x) ~> constituentTwoAfter).head
     // make sure the spans are different. Otherwise it is not valid
     if (cons.getSpan != x.getSpan) {
@@ -134,7 +134,7 @@ object POSDataModel extends DataModel {
     } else ""
   }
 
-  val labelTwoAfterU = property(tokens, "labelTwoAfterU", cache = true) { x: Constituent =>
+  val labelTwoAfterU = property(tokens, "labelTwoAfterU") { x: Constituent =>
     val cons = (tokens(x) ~> constituentTwoAfter).head
     // make sure the spans are different. Otherwise it is not valid
     if (cons.getSpan != x.getSpan) {

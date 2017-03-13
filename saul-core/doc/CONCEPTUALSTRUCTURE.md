@@ -50,19 +50,6 @@ so next time it just looks up the value from the cache.
 
 **Note:** `isStatic` caches the value for the lifetime of the training process. Make sure you have enough free memory (RAM) available to store the cache in-memory.
 
-If you want the value to be cache only during a single iteration, use the `cache` parameter. The `cache` parameter allows the value to be cached within a training/testing iteration. This is useful if you one of your features depends on evaluation of a Classifier on other instances as well. This recursive evaluation of the Classifier might be expensive and caching would speed-up performance. Look at a sample usage of this parameter in the [POSTagging Example](../../saul-examples/src/main/scala/edu/illinois/cs/cogcomp/saulexamples/nlp/POSTagger/POSDataModel.scala#L66).
-
-Usage:
-```scala
-val pos = property(token, cache = true) {
-   (t: ConllRawToken) => t.POS
-}
-```
-
-The value of these properties are cleared at the end of each training iteration.
-
-**Note:** The `isStatic` parameter supersedes the `cache` parameter. Static Properties are expected to have fixed output value throughout the training/testing process.
-
 #### Parameterized properties 
 Suppose you want to define properties which get some parameters; this can be important when we want to programmatically 
 define many properties which differ only in some parameters. Here are two example properties which differ slightly: 
