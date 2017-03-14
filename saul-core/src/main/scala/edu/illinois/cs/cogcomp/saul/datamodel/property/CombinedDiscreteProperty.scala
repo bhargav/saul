@@ -24,7 +24,7 @@ case class CombinedDiscreteProperty[T <: AnyRef](atts: List[Property[T]])(implic
 
   override def outputType: String = "mixed%"
 
-  override def featureVector(instance: T): FeatureVector = {
+  override def featureVectorImpl(instance: T): FeatureVector = {
     val featureVector = new FeatureVector()
     atts.foreach(property => featureVector.addFeatures(property.featureVector(instance)))
     featureVector

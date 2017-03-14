@@ -160,38 +160,66 @@ trait DataModel extends Logging {
     e
   }
 
-  class PropertyApply[T <: AnyRef] private[DataModel] (val node: Node[T], name: String, cache: Boolean, ordered: Boolean) {
+
+  /**
+    * Helper class to facilitite creating new Property instances.
+    *
+    * Note:
+    * 1) The `cache` parameter is used to cache a Property value within a single training iteration. It's use-case is
+    *    primarily for scenarios where the property value depends on a recursive Learnable evaluation.
+    * 2) The `isStatic` parameter is used to cache a Property value which is not expected to change during the entire
+    *    training process.
+    * 3) Marking a property as `isStatic` supersedes the `cache` preference. Static Properties are always cached
+    *    regardless of the value of `cache` parameter.
+    *
+    * @param node [[Node]] instance to add the current property to.
+    * @param name Name of the property.
+    * @param cache Boolean indicating if this property should be cached during training.
+    * @param ordered Denoting if the order among the values in this property needs to be preserved. Only applies to
+    *                collection-based properties.
+    * @param isStatic Boolean indicating if this property has a static value, which does not change during training.
+    *                 Caching static properties saves redundant calculation of the Property's value.
+    * @tparam T Data type of the value represented by the property. This is inferred from the [[Node]] instance.
+    * @return [[PropertyApply]]
+    */
+  class PropertyApply[T <: AnyRef] private[DataModel] (val node: Node[T],
+                                                       name: String,
+                                                       cache: Boolean,
+                                                       ordered: Boolean,
+                                                       isStatic: Boolean) {
     papply =>
 
-    // TODO(danielk): make the hashmaps immutable
-    lazy val propertyCacheMap = {
-      val map = collection.mutable.HashMap[T, Any]()
-      node.propertyCacheList += map
-      map
-    }
-
-    def getOrUpdate(input: T, f: T => Any): Any = propertyCacheMap.getOrElseUpdate(input, f(input))
-
     def apply(f: T => Boolean)(implicit tag: ClassTag[T]): BooleanProperty[T] = {
-      def cachedF = if (cache) { x: T => getOrUpdate(x, f).asInstanceOf[Boolean] } else f
-      val a = new BooleanProperty[T](name, cachedF) with NodeProperty[T] { override def node: Node[T] = papply.node }
+      val a = new BooleanProperty[T](name, f) with NodeProperty[T] {
+        override def node: Node[T] = papply.node
+        override val isCacheable: Boolean = isStatic || cache
+      }
+
+      // Property value will only be cached during a single training/testing iteration
+      if (cache && !isStatic) node.perIterationCachePropertyList.append(a)
+
       papply.node.properties += a
       properties += a
       a
     }
 
     def apply(f: T => List[Int])(implicit tag: ClassTag[T], d: DummyImplicit): RealPropertyCollection[T] = {
-      def cachedF = if (cache) { x: T => getOrUpdate(x, f).asInstanceOf[List[Int]] } else f
-      val newf: T => List[Double] = { t => cachedF(t).map(_.toDouble) }
+      val newF: T => List[Double] = { t => f(t).map(_.toDouble) }
       val a = if (ordered) {
-        new RealArrayProperty[T](name, newf) with NodeProperty[T] {
+        new RealArrayProperty[T](name, newF) with NodeProperty[T] {
           override def node: Node[T] = papply.node
+          override val isCacheable: Boolean = isStatic || cache
         }
       } else {
-        new RealGenProperty[T](name, newf) with NodeProperty[T] {
+        new RealGenProperty[T](name, newF) with NodeProperty[T] {
           override def node: Node[T] = papply.node
+          override val isCacheable: Boolean = isStatic || cache
         }
       }
+
+      // Property value will only be cached during a single training/testing iteration
+      if (cache && !isStatic) node.perIterationCachePropertyList.append(a)
+
       papply.node.properties += a
       properties += a
       a
@@ -199,11 +227,15 @@ trait DataModel extends Logging {
 
     /** Discrete sensor feature with range, same as real name in lbjava */
     def apply(f: T => Int)(implicit tag: ClassTag[T], d1: DummyImplicit, d2: DummyImplicit): RealProperty[T] = {
-      def cachedF = if (cache) { x: T => getOrUpdate(x, f).asInstanceOf[Int] } else f
-      val newf: T => Double = { t => cachedF(t).toDouble }
-      val a = new RealProperty[T](name, newf) with NodeProperty[T] {
+      val newF: T => Double = { t => f(t).toDouble }
+      val a = new RealProperty[T](name, newF) with NodeProperty[T] {
         override def node: Node[T] = papply.node
+        override val isCacheable: Boolean = isStatic || cache
       }
+
+      // Property value will only be cached during a single training/testing iteration
+      if (cache && !isStatic) node.perIterationCachePropertyList.append(a)
+
       papply.node.properties += a
       properties += a
       a
@@ -212,10 +244,14 @@ trait DataModel extends Logging {
     /** Discrete sensor feature with range, same as real% and real[] in lbjava */
     def apply(f: T => List[Double])(implicit tag: ClassTag[T], d1: DummyImplicit, d2: DummyImplicit,
       d3: DummyImplicit): RealCollectionProperty[T] = {
-      def cachedF = if (cache) { x: T => getOrUpdate(x, f).asInstanceOf[List[Double]] } else f
-      val a = new RealCollectionProperty[T](name, cachedF, ordered) with NodeProperty[T] {
+      val a = new RealCollectionProperty[T](name, f, ordered) with NodeProperty[T] {
         override def node: Node[T] = papply.node
+        override val isCacheable: Boolean = isStatic || cache
       }
+
+      // Property value will only be cached during a single training/testing iteration
+      if (cache && !isStatic) node.perIterationCachePropertyList.append(a)
+
       papply.node.properties += a
       properties += a
       a
@@ -224,10 +260,14 @@ trait DataModel extends Logging {
     /** Discrete sensor feature with range, same as real name in lbjava */
     def apply(f: T => Double)(implicit tag: ClassTag[T], d1: DummyImplicit, d2: DummyImplicit, d3: DummyImplicit,
       d4: DummyImplicit): RealProperty[T] = {
-      def cachedF = if (cache) { x: T => getOrUpdate(x, f).asInstanceOf[Double] } else f
-      val a = new RealProperty[T](name, cachedF) with NodeProperty[T] {
+      val a = new RealProperty[T](name, f) with NodeProperty[T] {
         override def node: Node[T] = papply.node
+        override val isCacheable: Boolean = isStatic || cache
       }
+
+      // Property value will only be cached during a single training/testing iteration
+      if (cache && !isStatic) node.perIterationCachePropertyList.append(a)
+
       papply.node.properties += a
       properties += a
       a
@@ -236,10 +276,14 @@ trait DataModel extends Logging {
     /** Discrete feature without range, same as discrete SpamLabel in lbjava */
     def apply(f: T => String)(implicit tag: ClassTag[T], d1: DummyImplicit, d2: DummyImplicit, d3: DummyImplicit,
       d4: DummyImplicit, d5: DummyImplicit): DiscreteProperty[T] = {
-      def cachedF = if (cache) { x: T => getOrUpdate(x, f).asInstanceOf[String] } else f
-      val a = new DiscreteProperty[T](name, cachedF, None) with NodeProperty[T] {
+      val a = new DiscreteProperty[T](name, f, None) with NodeProperty[T] {
         override def node: Node[T] = papply.node
+        override val isCacheable: Boolean = isStatic || cache
       }
+
+      // Property value will only be cached during a single training/testing iteration
+      if (cache && !isStatic) node.perIterationCachePropertyList.append(a)
+
       papply.node.properties += a
       properties += a
       a
@@ -248,10 +292,14 @@ trait DataModel extends Logging {
     /** Discrete array feature with range, same as discrete[] and discrete% in lbjava */
     def apply(f: T => List[String])(implicit tag: ClassTag[T], d1: DummyImplicit, d2: DummyImplicit, d3: DummyImplicit,
       d4: DummyImplicit, d5: DummyImplicit, d6: DummyImplicit): DiscreteCollectionProperty[T] = {
-      def cachedF = if (cache) { x: T => getOrUpdate(x, f).asInstanceOf[List[String]] } else f
-      val a = new DiscreteCollectionProperty[T](name, cachedF, !ordered) with NodeProperty[T] {
+      val a = new DiscreteCollectionProperty[T](name, f, !ordered) with NodeProperty[T] {
         override def node: Node[T] = papply.node
+        override val isCacheable: Boolean = isStatic || cache
       }
+
+      // Property value will only be cached during a single training/testing iteration
+      if (cache && !isStatic) node.perIterationCachePropertyList.append(a)
+
       papply.node.properties += a
       properties += a
       a
@@ -261,19 +309,48 @@ trait DataModel extends Logging {
     def apply(range: String*)(f: T => String)(implicit tag: ClassTag[T], d1: DummyImplicit, d2: DummyImplicit, d3: DummyImplicit,
       d4: DummyImplicit, d5: DummyImplicit, d6: DummyImplicit,
       d7: DummyImplicit): DiscreteProperty[T] = {
-      def cachedF = if (cache) { x: T => getOrUpdate(x, f).asInstanceOf[String] } else f
       val r = range.toList
-      val a = new DiscreteProperty[T](name, cachedF, Some(r)) with NodeProperty[T] {
+      val a = new DiscreteProperty[T](name, f, Some(r)) with NodeProperty[T] {
         override def node: Node[T] = papply.node
+        override val isCacheable: Boolean = isStatic || cache
       }
+
+      // Property value will only be cached during a single training/testing iteration
+      if (cache && !isStatic) node.perIterationCachePropertyList.append(a)
+
       papply.node.properties += a
       properties += a
       a
     }
   }
 
-  def property[T <: AnyRef](node: Node[T], name: String = "prop" + properties.size, cache: Boolean = false, ordered: Boolean = false) =
-    new PropertyApply[T](node, name, cache, ordered)
+  /**
+    * Function to create a new [[Property]] instance inside a DataModel.
+    *
+    * Note:
+    * 1) The `cache` parameter is used to cache a Property value within a single training iteration. It's use-case is
+    *    primarily for scenarios where the property value depends on a recursive Learnable evaluation.
+    * 2) The `isStatic` parameter is used to cache a Property value which is not expected to change during the entire
+    *    training process.
+    * 3) Marking a property as `isStatic` supersedes the `cache` preference. Static Properties are always cached
+    *    regardless of the value of `cache` parameter.
+    *
+    * @param node [[Node]] instance to add the current property to.
+    * @param name Name of the property.
+    * @param cache Boolean indicating if this property should be cached during training.
+    * @param ordered Denoting if the order among the values in this property needs to be preserved. Only applies to
+    *                collection-based properties.
+    * @param isStatic Boolean indicating if this property has a static value, which does not change during training.
+    *                 Caching static properties saves redundant calculation of the Property's value.
+    * @tparam T Data type of the value represented by the property. This is inferred from the [[Node]] instance.
+    * @return Property instance wrapped in a helper class [[PropertyApply]].
+    */
+  def property[T <: AnyRef](node: Node[T],
+                            name: String = "prop" + properties.size,
+                            cache: Boolean = false,
+                            ordered: Boolean = false,
+                            isStatic: Boolean = false) =
+    new PropertyApply[T](node, name, isStatic = isStatic, cache = cache, ordered = ordered)
 
   /** Methods for caching Data Model */
   var hasDerivedInstances = false

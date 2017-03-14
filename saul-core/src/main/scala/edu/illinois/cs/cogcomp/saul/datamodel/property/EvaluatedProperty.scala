@@ -21,7 +21,7 @@ class EvaluatedProperty[T <: AnyRef, U](val property: TypedProperty[T, U], val v
 
   val typedProperties = new BooleanProperty[T](name, this.boolMapping)
 
-  override def featureVector(instance: T): FeatureVector = typedProperties.featureVector(instance)
+  override def featureVectorImpl(instance: T): FeatureVector = typedProperties.featureVector(instance)
 
   override val sensor: (T) => String = { t: T => "" }
 }

@@ -15,7 +15,7 @@ case class RealCollectionProperty[T <: AnyRef](name: String, sensor: T => List[D
 
   override def outputType: String = "real%"
 
-  override def featureVector(instance: T): FeatureVector = {
+  override def featureVectorImpl(instance: T): FeatureVector = {
     val values = sensor(instance)
     val featureVector = new FeatureVector
 

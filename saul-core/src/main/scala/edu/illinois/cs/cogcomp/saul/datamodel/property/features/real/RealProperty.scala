@@ -15,7 +15,7 @@ case class RealProperty[T <: AnyRef](name: String, sensor: T => Double)(implicit
 
   override def outputType: String = "real"
 
-  override def featureVector(instance: T): FeatureVector = {
+  override def featureVectorImpl(instance: T): FeatureVector = {
     val result: Double = sensor(instance)
     new FeatureVector(new RealPrimitiveStringFeature(containingPackage, name, "", result))
   }

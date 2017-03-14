@@ -13,7 +13,7 @@ import scala.reflect.ClassTag
 
 case class DiscreteArrayProperty[T <: AnyRef](name: String, sensor: T => List[String])(implicit val tag: ClassTag[T]) extends TypedProperty[T, List[String]] {
 
-  override def featureVector(instance: T): FeatureVector = {
+  override def featureVectorImpl(instance: T): FeatureVector = {
     val values = sensor(instance)
 
     var __result: FeatureVector = null
