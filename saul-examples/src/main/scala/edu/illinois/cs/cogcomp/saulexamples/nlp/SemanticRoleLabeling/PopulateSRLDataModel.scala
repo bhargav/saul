@@ -17,18 +17,20 @@ import edu.illinois.cs.cogcomp.curator.CuratorConfigurator._
 import edu.illinois.cs.cogcomp.edison.annotators.ClauseViewGenerator
 import edu.illinois.cs.cogcomp.pipeline.common.PipelineConfigurator._
 import edu.illinois.cs.cogcomp.nlp.utilities.ParseUtils
+
 import edu.illinois.cs.cogcomp.saul.util.Logging
+
 import edu.illinois.cs.cogcomp.saulexamples.data.{ SRLDataReader, SRLFrameManager }
-import edu.illinois.cs.cogcomp.saulexamples.nlp.CommonSensors._
 import edu.illinois.cs.cogcomp.saulexamples.nlp.SemanticRoleLabeling.SRLSensors._
 import edu.illinois.cs.cogcomp.saulexamples.nlp.TextAnnotationFactory
 import edu.illinois.cs.cogcomp.saulexamples.nlp.SemanticRoleLabeling.SRLscalaConfigurator._
+
 import scala.collection.JavaConversions._
 
 /** Created by Parisa on 1/17/16.
   */
 object PopulateSRLDataModel extends Logging {
-  def apply[T <: AnyRef](
+  def apply(
     testOnly: Boolean = false,
     useGoldPredicate: Boolean = false,
     useGoldArgBoundaries: Boolean = false,
@@ -38,6 +40,7 @@ object PopulateSRLDataModel extends Logging {
     val useCurator = rm.getBoolean(SRLConfigurator.USE_CURATOR)
     val parseViewName = rm.getString(SRLConfigurator.SRL_PARSE_VIEW)
     val graphs = new SRLMultiGraphDataModel(parseViewName, frameManager)
+
     val annotatorService = useCurator match {
       case true =>
         val nonDefaultProps = new Properties()
@@ -50,10 +53,12 @@ object PopulateSRLDataModel extends Logging {
           TextAnnotationFactory.disableSettings(nonDefaultProps, USE_POS, USE_STANFORD_PARSE)
         TextAnnotationFactory.createPipelineAnnotatorService(nonDefaultProps)
     }
+
     val clauseViewGenerator = parseViewName match {
       case ViewNames.PARSE_GOLD => new ClauseViewGenerator(parseViewName, "CLAUSES_GOLD")
       case ViewNames.PARSE_STANFORD => ClauseViewGenerator.STANFORD
     }
+
     def addViewAndFilter(taAll: Iterable[TextAnnotation]): Iterable[TextAnnotation] = {
       taAll.map { ta =>
         try {
@@ -70,6 +75,7 @@ object PopulateSRLDataModel extends Logging {
             logger.warn(s"Annotation failed for sentence ${ta.getId}; removing it from the list.")
             taAll.remove(ta)
         }
+
         // Clean up the trees
         val tree: Tree[String] = ta.getView(parseViewName).asInstanceOf[TreeView].getTree(0)
         val parseView = new TreeView(parseViewName, ta)
@@ -79,9 +85,9 @@ object PopulateSRLDataModel extends Logging {
       }
     }
 
-    def printNumbers(reader: SRLDataReader, readerType: String) = {
-      val numPredicates = reader.textAnnotations.map(ta => ta.getView(ViewNames.SRL_VERB).getConstituents.count(c => c.getLabel == "Predicate")).sum
-      val numArguments = reader.textAnnotations.map(ta => ta.getView(ViewNames.SRL_VERB).getConstituents.count(c => c.getLabel != "Predicate")).sum
+    def printNumbers(dataset: Seq[TextAnnotation], readerType: String) = {
+      val numPredicates = dataset.map(ta => ta.getView(ViewNames.SRL_VERB).getConstituents.count(c => c.getLabel == "Predicate")).sum
+      val numArguments = dataset.map(ta => ta.getView(ViewNames.SRL_VERB).getConstituents.count(c => c.getLabel != "Predicate")).sum
       logger.debug(s"Number of $readerType data predicates: $numPredicates")
       logger.debug(s"Number of $readerType data arguments: $numArguments")
     }
@@ -89,12 +95,20 @@ object PopulateSRLDataModel extends Logging {
     var gr: SRLMultiGraphDataModel = null
     if (!testOnly) {
       logger.info(s"Reading training data from sections $TRAIN_SECTION_S to $TRAIN_SECTION_E")
-      val trainReader = new SRLDataReader(TREEBANK_HOME, PROPBANK_HOME,
-        TRAIN_SECTION_S, TRAIN_SECTION_E)
-      trainReader.readData()
-      logger.info(s"Annotating ${trainReader.textAnnotations.size} training sentences")
-      val filteredTa = addViewAndFilter(trainReader.textAnnotations)
-      printNumbers(trainReader, "training")
+      val trainDatasetCache = SRLUtilities.getDatasetName(TRAIN_SECTION_S.toString, TRAIN_SECTION_E.toString, rm)
+      var filteredTa = SRLUtilities.getCachedTextAnnotation(trainDatasetCache)
+
+      if (filteredTa.isEmpty) {
+        val trainReader = new SRLDataReader(TREEBANK_HOME, PROPBANK_HOME, TRAIN_SECTION_S, TRAIN_SECTION_E)
+        trainReader.readData()
+
+        logger.info(s"Annotating ${trainReader.textAnnotations.size} training sentences")
+        filteredTa = addViewAndFilter(trainReader.textAnnotations).toSeq
+
+        SRLUtilities.putTextAnnotationInCache(trainDatasetCache, filteredTa)
+      }
+
+      printNumbers(filteredTa, "training")
       logger.info("Populating SRLDataModel with training data.")
 
       filteredTa.foreach { a =>
@@ -118,14 +132,21 @@ object PopulateSRLDataModel extends Logging {
       }
     }
 
-    val testReader = new SRLDataReader(TREEBANK_HOME, PROPBANK_HOME, TEST_SECTION, TEST_SECTION)
-    logger.info(s"Reading test data from section $TEST_SECTION")
-    testReader.readData()
+    val testDatasetCache = SRLUtilities.getDatasetName(TEST_SECTION.toString, TEST_SECTION.toString, rm)
+    var filteredTest = SRLUtilities.getCachedTextAnnotation(testDatasetCache)
 
-    logger.info(s"Annotating ${testReader.textAnnotations.size} test sentences")
-    val filteredTest = addViewAndFilter(testReader.textAnnotations)
+    if (filteredTest.isEmpty) {
+      val testReader = new SRLDataReader(TREEBANK_HOME, PROPBANK_HOME, TEST_SECTION, TEST_SECTION)
+      logger.info(s"Reading test data from section $TEST_SECTION")
+      testReader.readData()
 
-    printNumbers(testReader, "test")
+      logger.info(s"Annotating ${testReader.textAnnotations.size} test sentences")
+      filteredTest = addViewAndFilter(testReader.textAnnotations).toSeq
+
+      SRLUtilities.putTextAnnotationInCache(testDatasetCache, filteredTest)
+    }
+
+    printNumbers(filteredTest, "test")
 
     logger.info("Populating SRLDataModel with test data.")
     filteredTest.foreach { a =>
@@ -146,6 +167,7 @@ object PopulateSRLDataModel extends Logging {
       logger.debug("all relations for this test:" + gr.relations().size)
       graphs.addFromModel(gr)
     }
+
     graphs
   }
 }
