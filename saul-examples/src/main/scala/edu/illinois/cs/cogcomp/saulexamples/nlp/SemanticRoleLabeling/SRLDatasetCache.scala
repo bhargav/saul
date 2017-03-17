@@ -39,7 +39,7 @@ case class SRLDatasetCache(startSection: String, endSection: String, resourceMan
   }
 
   def cacheExists(): Boolean = {
-    IOUtils.exists(filePath) && getMap(datasetName).size() > 0
+    getMap(datasetName).size() > 0
   }
 
   def getDataset(): Seq[TextAnnotation] = {
