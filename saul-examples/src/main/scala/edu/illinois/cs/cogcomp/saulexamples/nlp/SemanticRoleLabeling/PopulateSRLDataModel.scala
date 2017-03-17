@@ -95,8 +95,8 @@ object PopulateSRLDataModel extends Logging {
     var gr: SRLMultiGraphDataModel = null
     if (!testOnly) {
       logger.info(s"Reading training data from sections $TRAIN_SECTION_S to $TRAIN_SECTION_E")
-      val trainDatasetCache = SRLUtilities.getDatasetName(TRAIN_SECTION_S.toString, TRAIN_SECTION_E.toString, rm)
-      var filteredTa = SRLUtilities.getCachedTextAnnotation(trainDatasetCache)
+      val trainDatasetCache = new SRLDatasetCache(TRAIN_SECTION_S.toString, TRAIN_SECTION_E.toString, rm)
+      var filteredTa = trainDatasetCache.getDataset()
 
       if (filteredTa.isEmpty) {
         val trainReader = new SRLDataReader(TREEBANK_HOME, PROPBANK_HOME, TRAIN_SECTION_S, TRAIN_SECTION_E)
@@ -105,7 +105,7 @@ object PopulateSRLDataModel extends Logging {
         logger.info(s"Annotating ${trainReader.textAnnotations.size} training sentences")
         filteredTa = addViewAndFilter(trainReader.textAnnotations).toSeq
 
-        SRLUtilities.putTextAnnotationInCache(trainDatasetCache, filteredTa)
+        trainDatasetCache.putDataset(filteredTa)
       }
 
       printNumbers(filteredTa, "training")
@@ -132,8 +132,8 @@ object PopulateSRLDataModel extends Logging {
       }
     }
 
-    val testDatasetCache = SRLUtilities.getDatasetName(TEST_SECTION.toString, TEST_SECTION.toString, rm)
-    var filteredTest = SRLUtilities.getCachedTextAnnotation(testDatasetCache)
+    val testDatasetCache = new SRLDatasetCache(TEST_SECTION.toString, TEST_SECTION.toString, rm)
+    var filteredTest = testDatasetCache.getDataset()
 
     if (filteredTest.isEmpty) {
       val testReader = new SRLDataReader(TREEBANK_HOME, PROPBANK_HOME, TEST_SECTION, TEST_SECTION)
@@ -143,7 +143,7 @@ object PopulateSRLDataModel extends Logging {
       logger.info(s"Annotating ${testReader.textAnnotations.size} test sentences")
       filteredTest = addViewAndFilter(testReader.textAnnotations).toSeq
 
-      SRLUtilities.putTextAnnotationInCache(testDatasetCache, filteredTest)
+      testDatasetCache.putDataset(filteredTest)
     }
 
     printNumbers(filteredTest, "test")
