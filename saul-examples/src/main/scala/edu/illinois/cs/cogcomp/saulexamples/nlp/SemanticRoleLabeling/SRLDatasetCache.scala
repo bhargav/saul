@@ -18,14 +18,9 @@ import scala.collection.JavaConversions._
 import scala.collection.mutable
 import scala.util.hashing.MurmurHash3
 
-case class SRLDatasetCache(startSection: String, endSection: String, resourceManager: ResourceManager, filePath: String = "dataset-cache") {
-  private val mapDBDatabase = DBMaker.fileDB(filePath)
-    .transactionEnable()
-    .fileMmapEnableIfSupported()
-    .fileMmapPreclearDisable()
-    .cleanerHackEnable()
-    .closeOnJvmShutdown()
-    .make()
+
+case class SRLDatasetCache(startSection: String, endSection: String, resourceManager: ResourceManager) {
+  import SRLDatasetCache.mapDBDatabase
 
   private def getMap(datasetName: String): ConcurrentMap[Integer, Array[Byte]]  = {
     mapDBDatabase.hashMap(datasetName, Serializer.INTEGER, Serializer.BYTE_ARRAY).createOrOpen()
@@ -54,12 +49,10 @@ case class SRLDatasetCache(startSection: String, endSection: String, resourceMan
 
   def putDataset(dataset: Seq[TextAnnotation]): Unit = {
     val map = getMap(datasetName)
-
     dataset.foreach({ ta: TextAnnotation =>
       val key: Int = MurmurHash3.stringHash(ta.getTokenizedText)
       map.put(key, ProtobufSerializer.writeAsBytes(ta))
     })
-
     mapDBDatabase.commit()
   }
 
@@ -68,4 +61,16 @@ case class SRLDatasetCache(startSection: String, endSection: String, resourceMan
     map.clear()
     mapDBDatabase.commit()
   }
+}
+
+object SRLDatasetCache {
+  private val cacheBasePath = ""
+
+  private val mapDBDatabase = DBMaker.fileDB(cacheBasePath + "dataset-cache")
+    .transactionEnable()
+    .fileMmapEnableIfSupported()
+    .fileMmapPreclearDisable()
+    .cleanerHackEnable()
+    .closeOnJvmShutdown()
+    .make()
 }
