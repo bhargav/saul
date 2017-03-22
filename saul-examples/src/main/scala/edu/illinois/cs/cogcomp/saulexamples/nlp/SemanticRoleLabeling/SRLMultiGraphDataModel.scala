@@ -241,7 +241,7 @@ class SRLMultiGraphDataModel(parseViewName: String = null, frameManager: SRLFram
     x: Relation =>
       val a: String = argumentXuIdentifierGivenApredicate(x) match {
         case "false" => "candidate"
-        case _ => argTypeConstraintClassifier(x)
+        case _ => ArgTypeConstrainedClassifier(x)
       }
       a
   }

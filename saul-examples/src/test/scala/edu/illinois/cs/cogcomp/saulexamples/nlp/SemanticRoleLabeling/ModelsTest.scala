@@ -8,10 +8,10 @@ package edu.illinois.cs.cogcomp.saulexamples.nlp.SemanticRoleLabeling
 
 import edu.illinois.cs.cogcomp.saul.classifier.ClassifierUtils
 import edu.illinois.cs.cogcomp.saulexamples.nlp.SemanticRoleLabeling.SRLClassifiers._
+import edu.illinois.cs.cogcomp.saulexamples.nlp.SemanticRoleLabeling.SRLConstrainedClassifiers.ArgTypeConstrainedClassifier
 import org.scalatest.{ FlatSpec, Matchers }
 
 class ModelsTest extends FlatSpec with Matchers {
-
   "argument type classifier (aTr)" should "work." in {
     ClassifierUtils.LoadClassifier(SRLConfigurator.SRL_JAR_MODEL_PATH.value + "/models_aTr/", argumentTypeLearner)
     val results = argumentTypeLearner.test(exclude = "candidate")
@@ -37,20 +37,20 @@ class ModelsTest extends FlatSpec with Matchers {
     }
   }
 
-  "L+I argument type classifier (aTr)" should "work." in {
-    //TODO solve the test problem with Gurobi licencing vs. OJalgoHook inefficiency
-    //    ClassifierUtils.LoadClassifier(SRLConfigurator.SRL_JAR_MODEL_PATH.value + "/models_aTr/", argumentTypeLearner)
-    //    val scores = argTypeConstraintClassifier.test(exclude = "candidate")
-    //    scores.foreach {
-    //      case (label, score) => {
-    //        label match {
-    //          case "A0" => (score._1 >= 0.9) should be(true)
-    //          case "A1" => (score._1 >= 0.9) should be(true)
-    //          case "A2" => (score._1 >= 0.6) should be(true)
-    //          case _ => ""
-    //        }
-    //      }
-    //    }
+  //TODO fix the issue with OjAlgo, and un-ignore this
+  "L+I argument type classifier (cTr)" should "work." ignore {
+    ClassifierUtils.LoadClassifier(SRLConfigurator.SRL_JAR_MODEL_PATH.value + "/models_cTr/", argumentTypeLearner)
+    val scores = ArgTypeConstrainedClassifier.test(exclude = "candidate")
+    println("scores = ")
+    println(scores)
+    scores.perLabel.foreach { resultPerLabel =>
+      resultPerLabel.label match {
+        case "A0" => resultPerLabel.f1 should be(0.96 +- 0.02)
+        case "A1" => resultPerLabel.f1 should be(0.93 +- 0.02)
+        case "A2" => resultPerLabel.f1 should be(0.85 +- 0.02)
+        case _ => ""
+      }
+    }
   }
 
   "argument identifier (bTr)" should "perform higher than 0.95." in {

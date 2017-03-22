@@ -11,17 +11,17 @@ import edu.illinois.cs.cogcomp.saul.util.Logging
 import scala.collection.JavaConversions._
 
 object SetCoverApp extends Logging {
-  val cityInstances = new City("saul-examples/src/main/resources/SetCover/example.txt")
+  val cityInstances = new City("src/main/resources/SetCover/example.txt")
   val neighborhoodInstances = cityInstances.getNeighborhoods.toList
 
   def main(args: Array[String]) {
+    println("in main: allowable values: " + new ContainsStation().allowableValues.toSeq)
     SetCoverSolverDataModel.cities populate List(cityInstances)
     SetCoverSolverDataModel.neighborhoods populate neighborhoodInstances
-    SetCoverSolverDataModel.cityContainsNeighborhoods.populateWith(_ == _.getParentCity)
-
-    /** printing the labels for each nrighborhood (whether they are choosen to be covered by a station, or not) */
+    def getParentCity = (n: Neighborhood) => n.getParentCity
+    SetCoverSolverDataModel.cityContainsNeighborhoods.populateWith((c: City, n: Neighborhood) => n.getParentCity == c)
     cityInstances.getNeighborhoods.foreach {
-      n => logger.info(n.getNumber + ": " + ContainsStationConstraint(n))
+      n => logger.info(n.getNumber + ": " + ConstrainedContainsStation(n))
     }
   }
 }

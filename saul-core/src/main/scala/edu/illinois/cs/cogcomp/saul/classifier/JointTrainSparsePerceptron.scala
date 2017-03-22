@@ -8,6 +8,7 @@ package edu.illinois.cs.cogcomp.saul.classifier
 
 import edu.illinois.cs.cogcomp.lbjava.classify.Classifier
 import edu.illinois.cs.cogcomp.lbjava.learn.LinearThresholdUnit
+import edu.illinois.cs.cogcomp.saul.classifier.infer.ConstrainedClassifier
 import edu.illinois.cs.cogcomp.saul.datamodel.node.Node
 
 import scala.reflect.ClassTag
@@ -68,7 +69,7 @@ object JointTrainSparsePerceptron {
                   x =>
                     {
                       def trainOnce() = {
-                        val result = typedC.classifier.discreteValue(x)
+                        val result = typedC.onClassifier.classifier.discreteValue(x)
                         val trueLabel = oracle.discreteValue(x)
 
                         if (result.equals("true") && trueLabel.equals("false")) {

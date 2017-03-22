@@ -8,148 +8,98 @@ package edu.illinois.cs.cogcomp.saulexamples.nlp.SemanticRoleLabeling
 
 import edu.illinois.cs.cogcomp.core.datastructures.ViewNames
 import edu.illinois.cs.cogcomp.core.datastructures.textannotation._
-import edu.illinois.cs.cogcomp.lbjava.infer.{ FirstOrderConstant, FirstOrderConstraint }
-import edu.illinois.cs.cogcomp.saul.classifier.ConstrainedClassifier
-import edu.illinois.cs.cogcomp.saul.constraint.ConstraintTypeConversion._
+import edu.illinois.cs.cogcomp.saul.classifier.infer.Constraint._
 import edu.illinois.cs.cogcomp.saulexamples.data.XuPalmerCandidateGenerator
 import edu.illinois.cs.cogcomp.saulexamples.nlp.SemanticRoleLabeling.SRLApps.srlDataModelObject._
 import edu.illinois.cs.cogcomp.saulexamples.nlp.SemanticRoleLabeling.SRLClassifiers.{ argumentTypeLearner, argumentXuIdentifierGivenApredicate, predicateClassifier }
 
 import scala.collection.JavaConversions._
-/** Created by Parisa on 12/23/15.
-  */
+
 object SRLConstraints {
-  val noOverlap = ConstrainedClassifier.constraint[TextAnnotation] {
-    {
-      var a: FirstOrderConstraint = null
-      x: TextAnnotation => {
-        a = new FirstOrderConstant(true)
-        (sentences(x) ~> sentencesToRelations ~> relationsToPredicates).foreach {
-          y =>
-            {
-              val argCandList = XuPalmerCandidateGenerator.generateCandidates(y, (sentences(y.getTextAnnotation) ~> sentencesToStringTree).head).
-                map(y => new Relation("candidate", y.cloneForNewView(y.getViewName), y.cloneForNewView(y.getViewName), 0.0))
-
-              x.getView(ViewNames.TOKENS).asInstanceOf[TokenLabelView].getConstituents.toList.foreach {
-                t: Constituent =>
-                  {
-                    val contains = argCandList.filter(z => z.getTarget.doesConstituentCover(t))
-                    a = a and contains.toList._atmost(1)({ p: Relation => (argumentTypeLearner on p).is("candidate") })
-                  }
-              }
-            }
-        }
-      }
-      a
-    }
-  } //end of NoOverlap constraint
-
-  val arg_IdentifierClassifier_Constraint = ConstrainedClassifier.constraint[Relation] {
-    x: Relation =>
-      {
-        (argumentXuIdentifierGivenApredicate on x isNotTrue) ==>
-          (argumentTypeLearner on x is "candidate")
-      }
-  }
-
-  val predArg_IdentifierClassifier_Constraint = ConstrainedClassifier.constraint[Relation] {
-    x: Relation =>
-      {
-        (predicateClassifier on x.getSource isTrue) and (argumentXuIdentifierGivenApredicate on x isTrue) ==>
-          (argumentTypeLearner on x isNot "candidate")
-      }
-  }
-
-  val r_arg_Constraint = ConstrainedClassifier.constraint[TextAnnotation] {
-    var a: FirstOrderConstraint = null
-    x: TextAnnotation => {
-      a = new FirstOrderConstant(true)
-      val values = Array("R-A1", "R-A2", "R-A3", "R-A4", "R-A5", "R-AA", "R-AM-ADV", "R-AM-CAU", "R-AM-EXT", "R-AM-LOC", "R-AM-MNR", "R-AM-PNC")
-      (sentences(x) ~> sentencesToRelations ~> relationsToPredicates).foreach {
-        y =>
-          {
-            val argCandList = (predicates(y) ~> -relationsToPredicates).toList
-            argCandList.foreach {
-              t: Relation =>
-                {
-                  for (i <- 0 until values.length)
-                    a = a and ((argumentTypeLearner on t) is values(i)) ==>
-                      argCandList.filterNot(x => x.equals(t))._exists {
-                        k: Relation => (argumentTypeLearner on k) is values(i).substring(2)
-                      }
-                }
-                a
-            }
-          }
+  def noOverlap = sentences.ForEach { x: TextAnnotation =>
+    (sentences(x) ~> sentencesToRelations ~> relationsToPredicates).ForAll { y =>
+      val argCandList = XuPalmerCandidateGenerator.generateCandidates(y, (sentences(y.getTextAnnotation) ~> sentencesToStringTree).head).
+        map(y => new Relation("candidate", y.cloneForNewView(y.getViewName), y.cloneForNewView(y.getViewName), 0.0))
+      x.getView(ViewNames.TOKENS).getConstituents.ForAll {
+        t: Constituent =>
+          val contains = argCandList.filter(_.getTarget.doesConstituentCover(t))
+          contains.AtMost(1) { p: Relation => argumentTypeLearner on p is "candidate" }
       }
     }
-    a
-  } // end r-arg constraint
-
-  val c_arg_Constraint = ConstrainedClassifier.constraint[TextAnnotation] {
-    var a: FirstOrderConstraint = null
-    x: TextAnnotation => {
-      a = new FirstOrderConstant(true)
-      val values = Array("C-A1", "C-A2", "C-A3", "C-A4", "C-A5", "C-AA", "C-AM-DIR", "C-AM-LOC", "C-AM-MNR", "C-AM-NEG", "C-AM-PNC")
-      (sentences(x) ~> sentencesToRelations ~> relationsToPredicates).foreach {
-        y =>
-          {
-            val argCandList = (predicates(y) ~> -relationsToPredicates).toList
-            val sortedCandidates = argCandList.sortBy(x => x.getTarget.getStartSpan)
-            sortedCandidates.zipWithIndex.foreach {
-              case (t, ind) =>
-                {
-                  if (ind > 0)
-                    for (i <- 0 until values.length)
-                      a = a and ((argumentTypeLearner on t) is values(i)) ==>
-                        sortedCandidates.subList(0, ind)._exists {
-                          k: Relation => (argumentTypeLearner on k) is values(i).substring(2)
-                        }
-                }
-            }
-          }
-      }
-    }
-    a
   }
 
-  val legal_arguments_Constraint = ConstrainedClassifier.constraint[TextAnnotation] { x: TextAnnotation =>
+  def arg_IdentifierClassifier_Constraint = relations.ForEach { x: Relation =>
+    (argumentXuIdentifierGivenApredicate on x isFalse) ==> (argumentTypeLearner on x is "candidate")
+  }
+
+  def predArg_IdentifierClassifier_Constraint = relations.ForEach { x: Relation =>
+    (predicateClassifier on x.getSource isTrue) and (argumentXuIdentifierGivenApredicate on x isTrue) ==>
+      (argumentTypeLearner on x isNot "candidate")
+  }
+
+  /** constraint for reference to an actual argument/adjunct of type arg */
+  def rArgConstraint(x: TextAnnotation) = {
+    val values = Array("R-A1", "R-A2", "R-A3", "R-A4", "R-AA", "R-AM-ADV", "R-AM-CAU", "R-AM-EXT", "R-AM-LOC", "R-AM-MNR", "R-AM-PNC")
     val constraints = for {
       y <- sentences(x) ~> sentencesToRelations ~> relationsToPredicates
       argCandList = (predicates(y) ~> -relationsToPredicates).toList
-      argLegalList = legalArguments(y)
-      z <- argCandList
-    } yield argLegalList._exists { t: String => argumentTypeLearner on z is t } or
-      (argumentTypeLearner on z is "candidate")
-    constraints.toSeq._forall(a => a)
-  }
-
-  val noDuplicate = ConstrainedClassifier.constraint[TextAnnotation] {
-    // Predicates have at most one argument of each type i.e. there shouldn't be any two arguments with the same type for each predicate
-    val values = Array("A0", "A1", "A2", "A3", "A4", "A5", "AA")
-    var a: FirstOrderConstraint = null
-    x: TextAnnotation => {
-      a = new FirstOrderConstant(true)
-      (sentences(x) ~> sentencesToRelations ~> relationsToPredicates).foreach {
-        y =>
-          {
-            val argCandList = (predicates(y) ~> -relationsToPredicates).toList
-            for (t1 <- 0 until argCandList.size - 1) {
-              for (t2 <- t1 + 1 until argCandList.size) {
-                a = a and (((argumentTypeLearner on argCandList.get(t1)) in values) ==> (((argumentTypeLearner on argCandList.get(t1)) isNot (argumentTypeLearner on argCandList.get(t2)))))
-              }
-
-            }
-          }
+      r: Relation <- argCandList
+      i <- values.indices
+    } yield ((argumentTypeLearner on r) is values(i)) ==>
+      argCandList.filterNot(x => x.equals(r)).Exists {
+        k: Relation => (argumentTypeLearner on k) is values(i).substring(2)
       }
-      a
-    }
+    constraints.ForAll
   }
 
-  val r_and_c_args = ConstrainedClassifier.constraint[TextAnnotation] {
-    x =>
-      r_arg_Constraint(x) and c_arg_Constraint(x) and legal_arguments_Constraint(x) and noDuplicate(x)
+  /** constraint for continuity of an argument/adjunct of type arg */
+  def cArgConstraint(x: TextAnnotation) = {
+    val values = Array("C-A1", "C-A2", "C-A3", "C-A4", "C-A5", "C-AM-DIR", "C-AM-LOC", "C-AM-MNR", "C-AM-NEG", "C-AM-PNC")
+    val constraints = for {
+      y <- sentences(x) ~> sentencesToRelations ~> relationsToPredicates
+      argCandList = (predicates(y) ~> -relationsToPredicates).toList
+      sortedCandidates = argCandList.sortBy(x => x.getTarget.getStartSpan)
+      (t, ind) <- sortedCandidates.zipWithIndex.drop(1)
+      i <- values.indices
+      labelOnT = (argumentTypeLearner on t) is values(i)
+      labelsIsValid = sortedCandidates.subList(0, ind).Exists {
+        k: Relation => (argumentTypeLearner on k) is values(i).substring(2)
+      }
+    } yield labelOnT ==> labelsIsValid
+    constraints.ForAll
   }
 
-} // end srlConstraints
+  /** the label of the classifier should be valid */
+  def legalArgumentsConstraint(x: TextAnnotation) = {
+    // these are the labels that are not used in the 'argumentTypeLearner' classifier
+    val excludedLabels = Set("R-AM-NEG", "R-AM-MOD", "<null>", "R-AM-DIS", "R-AM-REC", "R-AM-PRD", "C-AM-REC",
+      "C-AM-PRD", "R-AM-DIR", "C-AM-MOD", "AM", "R-AM", "C-AM")
+    val constraints = for {
+      y <- sentences(x) ~> sentencesToRelations ~> relationsToPredicates
+      argCandList = (predicates(y) ~> -relationsToPredicates).toList
+      argLegalList = legalArguments(y).toSet diff excludedLabels
+      z <- argCandList
+    } yield argLegalList.Exists { t: String => argumentTypeLearner on z is t } or
+      (argumentTypeLearner on z is "candidate")
+    constraints.ForAll
+  }
+
+  // Predicates have at most one argument of each type i.e. there shouldn't be any two arguments with the same type for each predicate
+  def noInconsistentPredicateLabels(x: TextAnnotation) = {
+    val values = Array("A0", "A1", "A2", "A3", "A4", "A5", "AA")
+    val constraints = for {
+      y <- sentences(x) ~> sentencesToRelations ~> relationsToPredicates
+      argCandList = (predicates(y) ~> -relationsToPredicates).toList
+      idx1 <- 0 until argCandList.size - 1
+      idx2 <- idx1 + 1 until argCandList.size
+      predictionIsValid = (argumentTypeLearner on argCandList.get(idx1)) isOneOf values
+      haveSameLabels = (argumentTypeLearner on argCandList.get(idx1)) equalsTo argCandList.get(idx2)
+    } yield predictionIsValid ==> haveSameLabels
+    constraints.ForAll
+  }
+
+  def allPredicateArgumentConstraints = sentences.ForEach { x: TextAnnotation =>
+    rArgConstraint(x) and cArgConstraint(x) and legalArgumentsConstraint(x) and noInconsistentPredicateLabels(x)
+  }
+}
 

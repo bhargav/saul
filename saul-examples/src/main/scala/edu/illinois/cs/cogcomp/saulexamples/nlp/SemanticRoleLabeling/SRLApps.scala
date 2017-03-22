@@ -6,13 +6,15 @@
   */
 package edu.illinois.cs.cogcomp.saulexamples.nlp.SemanticRoleLabeling
 
-import java.io.File
-
 import edu.illinois.cs.cogcomp.core.datastructures.ViewNames
+import edu.illinois.cs.cogcomp.core.utilities.configuration.ResourceManager
+
 import edu.illinois.cs.cogcomp.saul.classifier.{ ClassifierUtils, JointTrainSparseNetwork }
 import edu.illinois.cs.cogcomp.saul.util.Logging
 import edu.illinois.cs.cogcomp.saulexamples.nlp.SemanticRoleLabeling.SRLClassifiers._
-import edu.illinois.cs.cogcomp.saulexamples.nlp.SemanticRoleLabeling.SRLConstrainedClassifiers.argTypeConstraintClassifier
+import edu.illinois.cs.cogcomp.saulexamples.nlp.SemanticRoleLabeling.SRLConstrainedClassifiers.ArgTypeConstrainedClassifier
+
+import java.io.File
 
 object SRLscalaConfigurator {
 
@@ -177,17 +179,17 @@ object RunningApps extends App with Logging {
         argumentTypeLearner.modelDir = modelDir + expName
         val outputFile = modelDir + SRL_OUTPUT_FILE
         logger.info("Global training... ")
-        JointTrainSparseNetwork(sentences, argTypeConstraintClassifier :: Nil, 30, init = true)
+        JointTrainSparseNetwork(sentences, ArgTypeConstrainedClassifier :: Nil, 30, init = true)
         argumentTypeLearner.save()
-        argTypeConstraintClassifier.test(relations.getTestingInstances, outputFile, 200, exclude = "candidate")
+        ArgTypeConstrainedClassifier.test(relations.getTestingInstances, outputFile, 200, exclude = "candidate")
 
       case "lTr" =>
         argumentTypeLearner.modelDir = modelDir + expName
         val outputFile = modelDir + SRL_OUTPUT_FILE
         logger.info("Global training using loss augmented inference... ")
-        JointTrainSparseNetwork(sentences, argTypeConstraintClassifier :: Nil, 30, init = true, lossAugmented = true)
+        JointTrainSparseNetwork(sentences, ArgTypeConstrainedClassifier :: Nil, 30, init = true, lossAugmented = true)
         argumentTypeLearner.save()
-        argTypeConstraintClassifier.test(relations.getTestingInstances, outputFile, 200, exclude = "candidate")
+        ArgTypeConstrainedClassifier.test(relations.getTestingInstances, outputFile, 200, exclude = "candidate")
     }
 
   }
@@ -214,7 +216,7 @@ object RunningApps extends App with Logging {
 
       case (false, true) =>
         ClassifierUtils.LoadClassifier(SRLConfigurator.SRL_JAR_MODEL_PATH.value + "/models_aTr/", argumentTypeLearner)
-        argTypeConstraintClassifier.test(outputGranularity = 100, exclude = "candidate")
+        ArgTypeConstrainedClassifier.test(outputGranularity = 100, exclude = "candidate")
 
       case (false, false) =>
         ClassifierUtils.LoadClassifier(SRLConfigurator.SRL_JAR_MODEL_PATH.value + "/models_aTr/", argumentTypeLearner)
