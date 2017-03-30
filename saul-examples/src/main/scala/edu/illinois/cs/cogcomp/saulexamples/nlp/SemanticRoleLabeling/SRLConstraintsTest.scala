@@ -8,6 +8,7 @@ package edu.illinois.cs.cogcomp.saulexamples.nlp.SemanticRoleLabeling
 
 import edu.illinois.cs.cogcomp.core.datastructures.ViewNames
 import edu.illinois.cs.cogcomp.core.datastructures.textannotation.{Constituent, Relation, TextAnnotation, TokenLabelView}
+import edu.illinois.cs.cogcomp.core.io.{IOUtils, LineIO}
 import edu.illinois.cs.cogcomp.lbjava.classify.Classifier
 import edu.illinois.cs.cogcomp.lbjava.infer.{FirstOrderConstant, FirstOrderConstraint}
 import edu.illinois.cs.cogcomp.saul.classifier.{ClassifierUtils, ConstrainedClassifier}
@@ -172,15 +173,46 @@ object SRLConstraintsTest extends App {
     (noDuplicate, "noDuplicate"))
 
   val counters = new mutable.HashMap[(LfsConstraint[TextAnnotation], String), Int]()
+  val loggingData = new mutable.HashMap[LfsConstraint[TextAnnotation], mutable.StringBuilder]()
+
+  import graph._
 
   println("Number of sentences = " + graph.sentences.getTestingInstances.size)
   graph.sentences.getAllInstances.foreach({ sentence: TextAnnotation =>
     constraintsToEvaluate.foreach({ case (constraint: LfsConstraint[TextAnnotation], friendlyName: String) =>
-      val currentVal = counters.getOrElse((constraint, friendlyName), 0)
       if (!constraint.makeConstrainDef(sentence).evaluate()) {
+        val currentVal = counters.getOrElse((constraint, friendlyName), 0)
         counters.put((constraint, friendlyName), currentVal + 1)
+
+        val stringBuilder = loggingData.getOrElse(constraint, new mutable.StringBuilder())
+
+        stringBuilder.append(s"DocumentId: ${sentence.getId}\n")
+
+        constraint match {
+          case `legal_arguments_Constraint` =>
+            stringBuilder.append("Legal Arguments for predicates:\n")
+
+            val predicates = sentences(sentence) ~> sentencesToRelations ~> relationsToPredicates
+            predicates.foreach({ predicate: Constituent =>
+              val argLegalList = legalArguments(predicate)
+              stringBuilder.append(s"${predicate.getSurfaceForm}: ${argLegalList.mkString(" ")}\n")
+            })
+          case _ =>
+        }
+
+        stringBuilder.append("Printing View...\n")
+        stringBuilder.append(sentence.getView(ViewNames.SRL_VERB))
+        stringBuilder.append(System.lineSeparator())
+
+        loggingData.putIfAbsent(constraint, stringBuilder)
       }
     })
+  })
+
+  constraintsToEvaluate.foreach({ case (constraint: LfsConstraint[TextAnnotation], friendlyName: String) =>
+      loggingData.get(constraint).foreach({ it: mutable.StringBuilder =>
+        LineIO.write(s"$friendlyName.txt", Seq(it.mkString))
+      })
   })
 
   println(counters)
