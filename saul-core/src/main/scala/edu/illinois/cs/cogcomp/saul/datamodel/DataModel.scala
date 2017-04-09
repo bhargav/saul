@@ -160,6 +160,27 @@ trait DataModel extends Logging {
     e
   }
 
+  /** Helper class to facilitate creating new [[Property]] instances.
+    *
+    * Note:
+    * - The `cache` parameter is used to cache a property sensor's value within a single training iteration. This is
+    *   useful if properties are defined recursively.
+    * - The `cacheFeatureVector` parameter caches the FeatureVector for instances of this property. Thus, feature
+    *   extraction is performed only once during the training/testing process. This can lead to an increase in RAM
+    *   usage but will lead to speed-up in training iterations. Recommended to use with static features which have high
+    *   feature extraction effort.
+    *
+    * @param node [[Node]] instance to add the current property to.
+    * @param name Name of the property.
+    * @param cache Boolean indicating if this property sensor's value should be cached within training iterations.
+    * @param ordered Denoting if the order among the values in this property needs to be preserved. Only applies to
+    *                collection based properties.
+    * @param cacheFeatureVector Boolean indicating if this property's feature vector should be cached during
+    *                           training/testing. Caching feature vector saves redundant feature extraction during
+    *                           training/testing.
+    * @tparam T Data type of the node that this property is associated with.
+    * @return [[PropertyApply]] instance
+    */
   class PropertyApply[T <: AnyRef] private[DataModel] (
     val node: Node[T],
     name: String,
@@ -290,6 +311,27 @@ trait DataModel extends Logging {
     }
   }
 
+  /** Function to create a new [[Property]] instance inside a DataModel.
+    *
+    * Note:
+    * - The `cache` parameter is used to cache a property sensor's value within a single training iteration. This is
+    *   useful if properties are defined recursively.
+    * - The `cacheFeatureVector` parameter caches the FeatureVector for instances of this property. Thus, feature
+    *   extraction is performed only once during the training/testing process. This can lead to an increase in RAM
+    *   usage but will lead to speed-up in training iterations. Recommended to use with static features which have high
+    *   feature extraction effort.
+    *
+    * @param node [[Node]] instance to add the current property to.
+    * @param name Name of the property.
+    * @param cache Boolean indicating if this property sensor's value should be cached within training iterations.
+    * @param ordered Denoting if the order among the values in this property needs to be preserved. Only applies to
+    *                collection based properties.
+    * @param cacheFeatureVector Boolean indicating if this property's feature vector should be cached during
+    *                           training/testing. Caching feature vector saves redundant feature extraction during
+    *                           training/testing.
+    * @tparam T Data type of the node that this property is associated with.
+    * @return Property instance wrapped in a helper class [[PropertyApply]]
+    */
   def property[T <: AnyRef](node: Node[T], name: String = "prop" + properties.size, cache: Boolean = false, ordered: Boolean = false, cacheFeatureVector: Boolean = false) =
     new PropertyApply[T](node, name, cache, ordered, cacheFeatureVector)
 

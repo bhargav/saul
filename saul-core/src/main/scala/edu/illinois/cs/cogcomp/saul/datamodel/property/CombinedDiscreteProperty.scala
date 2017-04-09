@@ -14,7 +14,14 @@ import java.util
 import scala.collection.mutable
 import scala.reflect.ClassTag
 
-case class CombinedDiscreteProperty[T <: AnyRef](atts: List[Property[T]])(implicit val tag: ClassTag[T]) extends TypedProperty[T, List[_]] {
+/** Represents a collection of properties.
+  *
+  * @param atts List of properties (attributes).
+  * @param supportsFeatureVectorCaching Boolean to denote if feature vector caching should be supported.
+  * @param tag ClassTag of the property's input type.
+  * @tparam T Property's input type.
+  */
+case class CombinedDiscreteProperty[T <: AnyRef](atts: List[Property[T]], supportsFeatureVectorCaching: Boolean = false)(implicit val tag: ClassTag[T]) extends TypedProperty[T, List[_]] {
 
   override val sensor: (T) => List[_] = {
     t: T => atts.map(att => att.sensor(t))
@@ -31,7 +38,7 @@ case class CombinedDiscreteProperty[T <: AnyRef](atts: List[Property[T]])(implic
     atts.foreach(property => {
       val extractedFeatureVector = {
         // Handle caching of Feature Vector
-        if (property.cacheFeatureVector && property.isInstanceOf[NodeProperty[T]]) {
+        if (supportsFeatureVectorCaching && property.cacheFeatureVector && property.isInstanceOf[NodeProperty[T]]) {
           val nodeProperty = property.asInstanceOf[NodeProperty[T]]
           val instanceCacheMap = nodeProperty.node.propertyFeatureVectorCache
             .getOrElseUpdate(instance, new mutable.HashMap[Property[_], FeatureVector]())
