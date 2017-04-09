@@ -6,6 +6,8 @@
   */
 package edu.illinois.cs.cogcomp.saul.datamodel
 
+import edu.illinois.cs.cogcomp.lbjava.learn.{ SparseNetworkLearner, SparsePerceptron }
+import edu.illinois.cs.cogcomp.saul.classifier.Learnable
 import edu.illinois.cs.cogcomp.saul.datamodel.property.PairwiseConjunction
 import org.scalatest._
 
@@ -55,6 +57,55 @@ class propertyTest extends FlatSpec with Matchers {
 
       Set(p1.name, p2.name, p3.name).size should be(3)
     }
+  }
+
+  "property feature vector caching" should "work" in {
+    var counterNonStatic: Int = 0
+    var counterStatic: Int = 0
+
+    object testModel extends DataModel {
+      val n = node[String]
+
+      val testLabel = property(n) { s: String => s }
+      val nonStaticProperty = property(n) { s: String => counterNonStatic += 1; s }
+      val staticProperty = property(n, cacheFeatureVector = true) { s: String => counterStatic += 1; s }
+    }
+
+    import testModel._
+
+    object testClassifier extends Learnable[String](n) {
+      def label = testLabel
+      override lazy val classifier = new SparseNetworkLearner()
+      override def feature = using(staticProperty, nonStaticProperty)
+    }
+
+    val dataset = List("test", "testSecond")
+
+    n.populate(dataset)
+    testClassifier.learn(5)
+
+    counterNonStatic should be(10) // 5 iterations * 2 items
+    counterStatic should be(2) // 2 items
+
+    // To indicate that sensor values are not cached
+    nonStaticProperty("test")
+    staticProperty("test")
+
+    counterNonStatic should be(11)
+    counterStatic should be(3)
+
+    // To indicate that feature vectors are only cached in the training workflow
+    // Accessing featureVector directly does not return cached value.
+    nonStaticProperty.featureVector("test")
+    staticProperty.featureVector("test")
+
+    counterNonStatic should be(12)
+    counterStatic should be(4)
+
+    testClassifier.learn(5)
+
+    counterNonStatic should be(22)
+    counterStatic should be(4)
   }
 }
 

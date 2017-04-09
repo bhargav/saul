@@ -6,10 +6,12 @@
   */
 package edu.illinois.cs.cogcomp.saul.datamodel.property
 
+import edu.illinois.cs.cogcomp.lbjava.classify.{ Classifier, FeatureVector }
+import edu.illinois.cs.cogcomp.saul.datamodel.node.NodeProperty
+
 import java.util
 
-import edu.illinois.cs.cogcomp.lbjava.classify.{ Classifier, FeatureVector }
-
+import scala.collection.mutable
 import scala.reflect.ClassTag
 
 case class CombinedDiscreteProperty[T <: AnyRef](atts: List[Property[T]])(implicit val tag: ClassTag[T]) extends TypedProperty[T, List[_]] {
@@ -26,7 +28,21 @@ case class CombinedDiscreteProperty[T <: AnyRef](atts: List[Property[T]])(implic
 
   override def featureVector(instance: T): FeatureVector = {
     val featureVector = new FeatureVector()
-    atts.foreach(property => featureVector.addFeatures(property.featureVector(instance)))
+    atts.foreach(property => {
+      val extractedFeatureVector = {
+        // Handle caching of Feature Vector
+        if (property.cacheFeatureVector && property.isInstanceOf[NodeProperty[T]]) {
+          val nodeProperty = property.asInstanceOf[NodeProperty[T]]
+          val instanceCacheMap = nodeProperty.node.propertyFeatureVectorCache
+            .getOrElseUpdate(instance, new mutable.HashMap[Property[_], FeatureVector]())
+          instanceCacheMap.getOrElseUpdate(property, property.featureVector(instance))
+        } else {
+          property.featureVector(instance)
+        }
+      }
+
+      featureVector.addFeatures(extractedFeatureVector)
+    })
     featureVector
   }
 

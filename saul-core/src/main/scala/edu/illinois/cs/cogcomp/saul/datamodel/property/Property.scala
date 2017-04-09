@@ -28,6 +28,8 @@ trait Property[T] {
 
   val sensor: T => S
 
+  val cacheFeatureVector: Boolean = false
+
   def apply(instance: T): S = sensor(instance)
 
   def featureVector(instance: T): FeatureVector

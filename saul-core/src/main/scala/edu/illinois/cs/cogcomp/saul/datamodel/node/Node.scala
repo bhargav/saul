@@ -312,8 +312,10 @@ class Node[T <: AnyRef](val keyFunc: T => Any = (x: T) => x, val tag: ClassTag[T
     }
   }
 
+  private[saul] final val propertyFeatureVectorCache = new mutable.WeakHashMap[T, mutable.HashMap[Property[_], FeatureVector]]()
+
   /** list of hashmaps used inside properties for caching sensor values */
-  final val propertyCacheList = new ListBuffer[MutableHashMap[_, Any]]()
+  private[saul] final val propertyCacheList = new ListBuffer[MutableHashMap[_, Any]]()
 
   def clearPropertyCache(): Unit = {
     if (propertyCacheList.nonEmpty) {
