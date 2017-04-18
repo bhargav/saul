@@ -215,7 +215,7 @@ object RunningApps extends App with Logging {
         )
 
       case (false, true) =>
-        ClassifierUtils.LoadClassifier(SRLConfigurator.SRL_JAR_MODEL_PATH.value + "/models_aTr/", argumentTypeLearner)
+        ClassifierUtils.LoadClassifier(SRLConfigurator.SRL_JAR_MODEL_PATH.value + "/models_cTr/", argumentTypeLearner)
         ArgTypeConstrainedClassifier.test(outputGranularity = 100, exclude = "candidate")
 
       case (false, false) =>

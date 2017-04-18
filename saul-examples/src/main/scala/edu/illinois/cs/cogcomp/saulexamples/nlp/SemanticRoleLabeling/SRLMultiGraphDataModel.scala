@@ -191,7 +191,7 @@ class SRLMultiGraphDataModel(parseViewName: String = null, frameManager: SRLFram
   }
 
   val legalArguments = property(predicates, "legalArgs") {
-    x: Constituent => frameManager.getLegalArguments(predLemmaP(x)).toList
+    x: Constituent => frameManager.getLegalArguments(predLemmaP(x)).union(Set("C-V")).toList
   }
 
   // Classifiers as properties
