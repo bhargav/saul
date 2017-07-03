@@ -80,11 +80,16 @@ class Node[T <: AnyRef](val keyFunc: T => Any = (x: T) => x, val tag: ClassTag[T
   }
 
   def clear(): Unit = {
+    // Clear property caches
+    propertyCacheList.foreach(_.clear())
+    propertyFeatureVectorCache.clear()
+
     collection.clear
     trainingSet.clear
     testingSet.clear
-    for (e <- incoming) e.clear
-    for (e <- outgoing) e.clear
+
+    for (e <- incoming) e.clear()
+    for (e <- outgoing) e.clear()
   }
 
   private var count: AtomicInteger = new AtomicInteger()
@@ -312,8 +317,11 @@ class Node[T <: AnyRef](val keyFunc: T => Any = (x: T) => x, val tag: ClassTag[T
     }
   }
 
+  /** WeakHashMap instance to cache property's [[FeatureVector]] instances during training/testing */
+  private[saul] final val propertyFeatureVectorCache = new mutable.WeakHashMap[T, mutable.HashMap[Property[_], FeatureVector]]()
+
   /** list of hashmaps used inside properties for caching sensor values */
-  final val propertyCacheList = new ListBuffer[MutableHashMap[_, Any]]()
+  private[saul] final val propertyCacheList = new ListBuffer[MutableHashMap[_, Any]]()
 
   def clearPropertyCache(): Unit = {
     if (propertyCacheList.nonEmpty) {

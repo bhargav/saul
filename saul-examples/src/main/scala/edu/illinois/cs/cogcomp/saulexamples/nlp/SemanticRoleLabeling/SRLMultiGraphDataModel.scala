@@ -21,8 +21,20 @@ import edu.illinois.cs.cogcomp.saulexamples.nlp.SemanticRoleLabeling.SRLConstrai
 
 import scala.collection.JavaConversions._
 
-class SRLMultiGraphDataModel(val parseViewName: String = SRLscalaConfigurator.SRL_PARSE_VIEW, val frameManager: SRLFrameManager = SRLscalaConfigurator.SRL_FRAME_MANAGER) extends DataModel {
+/** Data Model graph for the Semantic Role Labeling task. Represents the data model and feature definitions.
+  *
+  * @param parseViewName View name for the gold SRL annotation.
+  * @param frameManager Instance of the SRL Frame Manager.
+  * @param cacheStaticFeatures Boolean to decide if static features should be cached during experimentation. Caching
+  *                            feature vectors trades off RAM usage with feature extraction time.
+  */
+class SRLMultiGraphDataModel(
+  parseViewName: String = SRLscalaConfigurator.SRL_PARSE_VIEW,
+  frameManager: SRLFrameManager = SRLscalaConfigurator.SRL_FRAME_MANAGER,
+  cacheStaticFeatures: Boolean = false
+) extends DataModel {
   // Nodes
+
   val predicates = node[Constituent]((x: Constituent) => x.getTextAnnotation.getCorpusId + ":" + x.getTextAnnotation.getId + ":" + x.getSpan)
 
   val arguments = node[Constituent]((x: Constituent) => x.getTextAnnotation.getCorpusId + ":" + x.getTextAnnotation.getId + ":" + x.getSpan)
@@ -64,7 +76,7 @@ class SRLMultiGraphDataModel(val parseViewName: String = SRLscalaConfigurator.SR
   }
 
   // Classification labels
-  val isPredicateGold = property(predicates, "p") {
+  val isPredicateGold = property(predicates, "p", cacheFeatureVector = cacheStaticFeatures) {
     x: Constituent => x.getLabel.equals("Predicate")
   }
   val predicateSenseGold = property(predicates, "s") {
@@ -79,26 +91,27 @@ class SRLMultiGraphDataModel(val parseViewName: String = SRLscalaConfigurator.SR
   }
 
   // Features properties
-  val posTag = property(predicates, "posC") {
+  val posTag = property(predicates, "posC", cacheFeatureVector = cacheStaticFeatures) {
     x: Constituent => getPOS(x)
   }
 
-  val subcategorization = property(predicates, "subcatC") {
+  val subcategorization = property(predicates, "subcatC", cacheFeatureVector = cacheStaticFeatures) {
     x: Constituent => fexFeatureExtractor(x, new SubcategorizationFrame(parseViewName))
   }
 
-  val phraseType = property(predicates, "phraseTypeC") {
+  val phraseType = property(predicates, "phraseTypeC", cacheFeatureVector = cacheStaticFeatures) {
     x: Constituent => fexFeatureExtractor(x, new ParsePhraseType(parseViewName))
   }
 
-  val headword = property(predicates, "headC") {
+  val headword = property(predicates, "headC", cacheFeatureVector = cacheStaticFeatures) {
     x: Constituent => fexFeatureExtractor(x, new ParseHeadWordPOS(parseViewName))
   }
 
-  val syntacticFrame = property(predicates, "synFrameC") {
+  val syntacticFrame = property(predicates, "synFrameC", cacheFeatureVector = cacheStaticFeatures) {
     x: Constituent => fexFeatureExtractor(x, new SyntacticFrame(parseViewName))
   }
-  val path = property(predicates, "pathC") {
+
+  val path = property(predicates, "pathC", cacheFeatureVector = cacheStaticFeatures) {
     x: Constituent => fexFeatureExtractor(x, new ParsePath(parseViewName))
   }
 
@@ -106,80 +119,80 @@ class SRLMultiGraphDataModel(val parseViewName: String = SRLscalaConfigurator.SR
   //    x: Relation => fexFeatureExtractor(x.getTarget, new SubcategorizationFrame(parseViewName))
   //  }
 
-  val phraseTypeRelation = property(relations, "phraseType") {
+  val phraseTypeRelation = property(relations, "phraseType", cacheFeatureVector = cacheStaticFeatures) {
     x: Relation => fexFeatureExtractor(x.getTarget, new ParsePhraseType(parseViewName))
   }
 
-  val headwordRelation = property(relations, "head") {
+  val headwordRelation = property(relations, "head", cacheFeatureVector = cacheStaticFeatures) {
     x: Relation => fexFeatureExtractor(x.getTarget, new ParseHeadWordPOS(parseViewName))
   }
 
-  val syntacticFrameRelation = property(relations, "synFrame") {
+  val syntacticFrameRelation = property(relations, "synFrame", cacheFeatureVector = cacheStaticFeatures) {
     x: Relation => fexFeatureExtractor(x.getTarget, new SyntacticFrame(parseViewName))
   }
 
-  val pathRelation = property(relations, "path") {
+  val pathRelation = property(relations, "path", cacheFeatureVector = cacheStaticFeatures) {
     x: Relation => fexFeatureExtractor(x.getTarget, new ParsePath(parseViewName))
   }
 
-  val predPosTag = property(relations, "pPos") {
+  val predPosTag = property(relations, "pPos", cacheFeatureVector = cacheStaticFeatures) {
     x: Relation => getPOS(x.getSource)
   }
 
-  val predLemmaR = property(relations, "pLem") {
+  val predLemmaR = property(relations, "pLem", cacheFeatureVector = cacheStaticFeatures) {
     x: Relation => getLemma(x.getSource)
   }
 
-  val predLemmaP = property(predicates, "pLem") {
+  val predLemmaP = property(predicates, "pLem", cacheFeatureVector = cacheStaticFeatures) {
     x: Constituent => getLemma(x)
   }
 
-  val linearPosition = property(relations, "position") {
+  val linearPosition = property(relations, "position", cacheFeatureVector = cacheStaticFeatures) {
     x: Relation => fexFeatureExtractor(x.getTarget, new LinearPosition())
   }
 
-  val voice = property(predicates, "voice") {
+  val voice = property(predicates, "voice", cacheFeatureVector = cacheStaticFeatures) {
     x: Constituent => fexFeatureExtractor(x, new VerbVoiceIndicator(parseViewName))
   }
 
-  val predWordWindow = property(predicates, "predWordWindow") {
+  val predWordWindow = property(predicates, "predWordWindow", cacheFeatureVector = cacheStaticFeatures) {
     x: Constituent => fexContextFeats(x, WordFeatureExtractorFactory.word)
   }
 
-  val predPOSWindow = property(predicates, "predPOSWindow") {
+  val predPOSWindow = property(predicates, "predPOSWindow", cacheFeatureVector = cacheStaticFeatures) {
     x: Constituent => fexContextFeats(x, WordFeatureExtractorFactory.pos)
   }
 
-  val argWordWindow = property(relations, "argWordWindow") {
+  val argWordWindow = property(relations, "argWordWindow", cacheFeatureVector = cacheStaticFeatures) {
     rel: Relation => fexContextFeats(rel.getTarget, WordFeatureExtractorFactory.word)
   }
 
-  val argPOSWindow = property(relations, "argPOSWindow") {
+  val argPOSWindow = property(relations, "argPOSWindow", cacheFeatureVector = cacheStaticFeatures) {
     rel: Relation => fexContextFeats(rel.getTarget, WordFeatureExtractorFactory.pos)
   }
 
-  val verbClass = property(predicates, "verbClass") {
+  val verbClass = property(predicates, "verbClass", cacheFeatureVector = cacheStaticFeatures) {
     x: Constituent => frameManager.getAllClasses(getLemma(x)).toList
   }
 
-  val constituentLength = property(relations, "constLength") {
+  val constituentLength = property(relations, "constLength", cacheFeatureVector = cacheStaticFeatures) {
     rel: Relation => rel.getTarget.getEndSpan - rel.getTarget.getStartSpan
   }
 
-  val chunkLength = property(relations, "chunkLength") {
+  val chunkLength = property(relations, "chunkLength", cacheFeatureVector = cacheStaticFeatures) {
     rel: Relation => rel.getTarget.getTextAnnotation.getView(ViewNames.SHALLOW_PARSE).getConstituentsCovering(rel.getTarget).length
   }
 
-  val chunkEmbedding = property(relations, "chunkEmbedding") {
+  val chunkEmbedding = property(relations, "chunkEmbedding", cacheFeatureVector = cacheStaticFeatures) {
     rel: Relation => fexFeatureExtractor(rel.getTarget, new ChunkEmbedding(ViewNames.SHALLOW_PARSE))
   }
 
-  val chunkPathPattern = property(relations, "chunkPath") {
+  val chunkPathPattern = property(relations, "chunkPath", cacheFeatureVector = cacheStaticFeatures) {
     rel: Relation => fexFeatureExtractor(rel.getTarget, new ChunkPathPattern(ViewNames.SHALLOW_PARSE))
   }
 
   /** Combines clause relative position and clause coverage */
-  val clauseFeatures = property(relations, "clauseFeats") {
+  val clauseFeatures = property(relations, "clauseFeats", cacheFeatureVector = cacheStaticFeatures) {
     rel: Relation =>
       val clauseViewName = parseViewName match {
         case ViewNames.PARSE_GOLD => "CLAUSES_GOLD"
@@ -189,21 +202,21 @@ class SRLMultiGraphDataModel(val parseViewName: String = SRLscalaConfigurator.SR
       fexFeatureExtractor(rel.getTarget, new ClauseFeatureExtractor(parseViewName, clauseViewName))
   }
 
-  val containsNEG = property(relations, "containsNEG") {
+  val containsNEG = property(relations, "containsNEG", cacheFeatureVector = cacheStaticFeatures) {
     rel: Relation => fexFeatureExtractor(rel.getTarget, ChunkPropertyFeatureFactory.isNegated)
   }
 
-  val containsMOD = property(relations, "containsMOD") {
+  val containsMOD = property(relations, "containsMOD", cacheFeatureVector = cacheStaticFeatures) {
     rel: Relation => fexFeatureExtractor(rel.getTarget, ChunkPropertyFeatureFactory.hasModalVerb)
   }
 
   // Frame properties
-  val legalSenses = property(relations, "legalSens") {
+  val legalSenses = property(relations, "legalSens", cacheFeatureVector = cacheStaticFeatures) {
     x: Relation => frameManager.getLegalSenses(predLemmaR(x)).toList
 
   }
 
-  val legalArguments = property(predicates, "legalArgs") {
+  val legalArguments = property(predicates, "legalArgs", cacheFeatureVector = cacheStaticFeatures) {
     x: Constituent => frameManager.getLegalArguments(predLemmaP(x)).toList
   }
 
@@ -258,7 +271,7 @@ class SRLMultiGraphDataModel(val parseViewName: String = SRLscalaConfigurator.SR
       }
       a
   }
-  val propertyConjunction = property(relations) {
+  val propertyConjunction = property(relations, cacheFeatureVector = cacheStaticFeatures) {
     x: Relation =>
       PairwiseConjunction(List(containsMOD, containsNEG), x)
   }

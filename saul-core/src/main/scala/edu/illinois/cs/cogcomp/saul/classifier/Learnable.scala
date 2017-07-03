@@ -18,7 +18,7 @@ import edu.illinois.cs.cogcomp.lbjava.parse.FoldParser.SplitPolicy
 import edu.illinois.cs.cogcomp.lbjava.parse.{ FoldParser, Parser }
 import edu.illinois.cs.cogcomp.saul.datamodel.DataModel
 import edu.illinois.cs.cogcomp.saul.datamodel.edge.Link
-import edu.illinois.cs.cogcomp.saul.datamodel.node.Node
+import edu.illinois.cs.cogcomp.saul.datamodel.node.{ Node, NodeProperty }
 import edu.illinois.cs.cogcomp.saul.datamodel.property.{ CombinedDiscreteProperty, Property, PropertyWithWindow }
 import edu.illinois.cs.cogcomp.saul.lbjrelated.LBJLearnerEquivalent
 import edu.illinois.cs.cogcomp.saul.parser.{ IterableToLBJavaParser, LBJavaParserToIterable }
@@ -51,8 +51,12 @@ abstract class Learnable[T <: AnyRef](val node: Node[T], val parameters: Paramet
   def feature: List[Property[T]] = node.properties.toList
 
   /** filter out the label from the features */
-  def combinedProperties = if (label != null) new CombinedDiscreteProperty[T](this.feature.filterNot(_.name == label.name))
-  else new CombinedDiscreteProperty[T](this.feature)
+  def combinedProperties = {
+    val features = if (label != null) this.feature.filterNot(_.name == label.name) else this.feature
+
+    // Support Feature Vector Caching during training.
+    new CombinedDiscreteProperty[T](features, supportsFeatureVectorCaching = true)
+  }
 
   def lbpFeatures = Property.convertToClassifier(combinedProperties)
 
