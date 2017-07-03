@@ -105,7 +105,8 @@ lazy val saulExamples = (project in file("saul-examples")).
       ccgGroupId % "saul-srl-models" % "1.4" classifier "verb-gold",
       "org.json" % "json" % "20140107",
       "com.twitter" % "hbc-core" % "2.2.0",
-      "org.rogach" %% "scallop" % "2.0.5"
+      "org.rogach" %% "scallop" % "2.0.5",
+      "org.mapdb" % "mapdb" % "3.0.4"
     )
   ).dependsOn(saulCore)
   .aggregate(saulCore)

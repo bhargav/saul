@@ -12,15 +12,19 @@ import edu.illinois.cs.cogcomp.annotation.{ AnnotatorException, AnnotatorService
 import edu.illinois.cs.cogcomp.core.datastructures.ViewNames
 import edu.illinois.cs.cogcomp.core.datastructures.textannotation.{ Constituent, PredicateArgumentView, TextAnnotation, TreeView }
 import edu.illinois.cs.cogcomp.core.datastructures.trees.Tree
+import edu.illinois.cs.cogcomp.core.utilities.protobuf.ProtobufSerializer
 import edu.illinois.cs.cogcomp.curator.CuratorConfigurator._
 import edu.illinois.cs.cogcomp.edison.annotators.ClauseViewGenerator
 import edu.illinois.cs.cogcomp.pipeline.common.PipelineConfigurator._
 import edu.illinois.cs.cogcomp.nlp.utilities.ParseUtils
+
 import edu.illinois.cs.cogcomp.saul.util.Logging
 import edu.illinois.cs.cogcomp.saulexamples.data.SRLDataReader
 import edu.illinois.cs.cogcomp.saulexamples.nlp.SemanticRoleLabeling.SRLSensors._
 import edu.illinois.cs.cogcomp.saulexamples.nlp.SemanticRoleLabeling.SRLscalaConfigurator._
 import edu.illinois.cs.cogcomp.saulexamples.nlp.TextAnnotationFactory
+
+import org.mapdb.{ DB, DBMaker, Serializer }
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
@@ -152,29 +156,101 @@ object PopulateSRLDataModel extends Logging {
     }
 
     if (!testOnly) {
+      val trainDatasetName = s"CURATOR=${SRLscalaConfigurator.USE_CURATOR}_${parseViewName}_TRAIN.cache"
+      logger.info("Trying to fetch train data from cache")
+      val trainDocuments = fetchDatasetFromCache(trainDatasetName)
 
-      logger.info(s"Reading training data from sections $TRAIN_SECTION_S to $TRAIN_SECTION_E")
-      val trainReader = new SRLDataReader(TREEBANK_HOME, PROPBANK_HOME, TRAIN_SECTION_S, TRAIN_SECTION_E)
-      trainReader.readData()
+      if (trainDocuments.nonEmpty) {
+        trainDocuments.foreach(populateDocument(_, isTrainingInstance = true))
+        closeDatabase()
+      } else {
 
-      logger.info(s"Annotating ${trainReader.textAnnotations.size} training sentences")
-      val filteredTa = addViewAndFilter(trainReader.textAnnotations)
-      printNumbers(trainReader, "training")
+        logger.info(s"Reading training data from sections $TRAIN_SECTION_S to $TRAIN_SECTION_E")
+        val trainReader = new SRLDataReader(TREEBANK_HOME, PROPBANK_HOME, TRAIN_SECTION_S, TRAIN_SECTION_E)
+        trainReader.readData()
 
-      logger.info("Populating SRLDataModel with training data.")
-      filteredTa.foreach(populateDocument(_, isTrainingInstance = true))
+        logger.info(s"Annotating ${trainReader.textAnnotations.size} training sentences")
+        val filteredTa = addViewAndFilter(trainReader.textAnnotations)
+        printNumbers(trainReader, "training")
+
+        putDatasetInCache(trainDatasetName, filteredTa.toSeq)
+        closeDatabase()
+
+        logger.info("Populating SRLDataModel with training data.")
+        filteredTa.foreach(populateDocument(_, isTrainingInstance = true))
+      }
     }
 
-    val testReader = new SRLDataReader(TREEBANK_HOME, PROPBANK_HOME, TEST_SECTION, TEST_SECTION)
-    logger.info(s"Reading test data from section $TEST_SECTION")
-    testReader.readData()
+    val testDatasetName = s"CURATOR=${SRLscalaConfigurator.USE_CURATOR}_${parseViewName}_TEST.cache"
+    logger.info("Trying to fetch test data from cache")
+    val testDocuments = fetchDatasetFromCache(testDatasetName)
 
-    logger.info(s"Annotating ${testReader.textAnnotations.size} test sentences")
-    val filteredTest = addViewAndFilter(testReader.textAnnotations)
+    if (testDocuments.nonEmpty) {
+      testDocuments.foreach(populateDocument(_, isTrainingInstance = false))
+      closeDatabase()
+    } else {
+      val testReader = new SRLDataReader(TREEBANK_HOME, PROPBANK_HOME, TEST_SECTION, TEST_SECTION)
+      logger.info(s"Reading test data from section $TEST_SECTION")
+      testReader.readData()
 
-    printNumbers(testReader, "test")
+      logger.info(s"Annotating ${testReader.textAnnotations.size} test sentences")
+      val filteredTest = addViewAndFilter(testReader.textAnnotations)
 
-    logger.info("Populating SRLDataModel with test data.")
-    filteredTest.foreach(populateDocument(_, isTrainingInstance = false))
+      printNumbers(testReader, "test")
+
+      putDatasetInCache(testDatasetName, filteredTest.toSeq)
+      closeDatabase()
+
+      logger.info("Populating SRLDataModel with test data.")
+      filteredTest.foreach(populateDocument(_, isTrainingInstance = false))
+    }
+  }
+
+  private var databaseInstance: Option[DB] = None
+  final def putDatasetInCache(datasetName: String, dataset: Seq[TextAnnotation]) = {
+    openDatabase(datasetName)
+
+    val datasetMap = databaseInstance.map({ dataset: DB ⇒
+      dataset.hashMap(datasetName, Serializer.INTEGER, Serializer.BYTE_ARRAY).createOrOpen()
+    }).get
+
+    datasetMap.clear()
+    dataset.foreach({ ta: TextAnnotation ⇒
+      val hashCode = ta.getTokenizedText.hashCode
+      datasetMap.put(hashCode, ProtobufSerializer.writeAsBytes(ta))
+    })
+  }
+
+  final def fetchDatasetFromCache(datasetName: String): Seq[TextAnnotation] = {
+    openDatabase(datasetName)
+
+    val instances = databaseInstance.map({ dataset: DB ⇒
+      dataset.hashMap(datasetName, Serializer.INTEGER, Serializer.BYTE_ARRAY).createOrOpen()
+    }).map(dataMap ⇒ {
+      dataMap.asScala.map({ case (_: Integer, taBytes: Array[Byte]) ⇒ ProtobufSerializer.parseFrom(taBytes) })
+    }).map(_.toSeq)
+
+    if (instances.isEmpty) {
+      logger.info("No instances found in cache.")
+    }
+
+    instances.getOrElse(Seq.empty)
+  }
+
+  final def openDatabase(datasetName: String): Unit = {
+    if (databaseInstance.nonEmpty) {
+      closeDatabase()
+    }
+
+    databaseInstance = Some(DBMaker.fileDB(datasetName)
+      .closeOnJvmShutdown()
+      .make())
+  }
+
+  final def closeDatabase(): Unit = {
+    if (databaseInstance.nonEmpty) {
+      databaseInstance.get.close()
+      databaseInstance = None
+    }
   }
 }
