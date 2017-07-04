@@ -7,7 +7,7 @@
 package edu.illinois.cs.cogcomp.saulexamples.nlp.SemanticRoleLabeling
 
 import edu.illinois.cs.cogcomp.core.datastructures.ViewNames
-import edu.illinois.cs.cogcomp.core.datastructures.textannotation.{ Constituent, Relation, TextAnnotation }
+import edu.illinois.cs.cogcomp.core.datastructures.textannotation.{ Constituent, PredicateArgumentView, Relation, TextAnnotation }
 import edu.illinois.cs.cogcomp.core.datastructures.trees.Tree
 import edu.illinois.cs.cogcomp.edison.features.factory._
 import edu.illinois.cs.cogcomp.nlp.corpusreaders.AbstractSRLAnnotationReader
@@ -19,6 +19,7 @@ import edu.illinois.cs.cogcomp.saulexamples.nlp.SemanticRoleLabeling.SRLSensors.
 import edu.illinois.cs.cogcomp.saulexamples.nlp.SemanticRoleLabeling.SRLClassifiers._
 import edu.illinois.cs.cogcomp.saulexamples.nlp.SemanticRoleLabeling.SRLConstrainedClassifiers._
 
+import scala.collection.JavaConverters._
 import scala.collection.JavaConversions._
 
 /** Data Model graph for the Semantic Role Labeling task. Represents the data model and feature definitions.
@@ -77,7 +78,17 @@ class SRLMultiGraphDataModel(
 
   // Classification labels
   val isPredicateGold = property(predicates, "p", cacheFeatureVector = cacheStaticFeatures) {
-    x: Constituent => x.getLabel.equals("Predicate")
+    x: Constituent =>
+      {
+        val goldPredicates = x.getTextAnnotation
+          .getView(ViewNames.SRL_VERB)
+          .asInstanceOf[PredicateArgumentView]
+          .getPredicates
+          .asScala
+
+        // Predicate is gold if it covers the same span as a gold predicate
+        goldPredicates.exists(_.getSpan == x.getSpan)
+      }
   }
   val predicateSenseGold = property(predicates, "s") {
     x: Constituent => x.getAttribute(AbstractSRLAnnotationReader.SenseIdentifier)
