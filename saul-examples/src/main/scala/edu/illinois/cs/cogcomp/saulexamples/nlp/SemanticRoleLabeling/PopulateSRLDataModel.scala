@@ -28,6 +28,7 @@ import org.mapdb.{ DB, DBMaker, Serializer }
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 
 /** Created by Parisa on 1/17/16.
   */
@@ -94,7 +95,7 @@ object PopulateSRLDataModel extends Logging {
           Some(ta)
         } catch {
           case e: Exception =>
-            logger.warn(s"Annotation failed for sentence ${ta.getId}; removing it from the list.")
+            logger.error(s"Annotation failed for sentence ${ta.getId}; removing it from the list.", e)
             None
         }
       })
@@ -147,12 +148,16 @@ object PopulateSRLDataModel extends Logging {
         singleInstanceGraph.relations.populate(XuPalmerCandidateArgsTraining, train = isTrainingInstance)
       }
 
-      logger.debug("all relations for this test:" + (singleInstanceGraph.sentences(a) ~> singleInstanceGraph.sentencesToRelations).size)
+      // logger.debug("all relations for this test:" + (singleInstanceGraph.sentences(a) ~> singleInstanceGraph.sentencesToRelations).size)
 
       // Populate the classifier DataModel with this single instance graph.
       // This is done due to performance reasons while populating a big data model graph directly.
       SRLClassifiers.SRLDataModel.addFromModel(singleInstanceGraph)
-      if (singleInstanceGraph.sentences().size % 1000 == 0) logger.info("loaded graphs in memory:" + singleInstanceGraph.sentences().size)
+
+      //val timeTaken = System.nanoTime() - startTime
+      //logger.info(s"Total time taken = ${timeTaken * 1e-9} seconds")
+
+      if (SRLClassifiers.SRLDataModel.sentences().size % 1000 == 0) logger.info("loaded graphs in memory:" + SRLClassifiers.SRLDataModel.sentences().size)
     }
 
     if (!testOnly) {
@@ -167,7 +172,7 @@ object PopulateSRLDataModel extends Logging {
       trainReader.textAnnotations.flatMap({ ta: TextAnnotation =>
         val hashCode = ta.getTokenizedText.hashCode
         if (trainDocuments.contains(hashCode)) {
-          Some(trainDocuments.get(hashCode)._1)
+          Some(trainDocuments(hashCode)._1)
         } else {
           val taOption = addViewAndFilter(Seq(ta)).headOption
           if (taOption.nonEmpty && taOption.get.hasView(parseViewName)) {
@@ -195,7 +200,7 @@ object PopulateSRLDataModel extends Logging {
     testReader.textAnnotations.flatMap({ ta: TextAnnotation =>
       val hashCode = ta.getTokenizedText.hashCode
       if (testDocuments.contains(hashCode)) {
-        Some(testDocuments.get(hashCode)._1)
+        Some(testDocuments(hashCode)._1)
       } else {
         val taOption = addViewAndFilter(Seq(ta)).headOption
         if (taOption.nonEmpty && taOption.get.hasView(parseViewName)) {
@@ -205,18 +210,16 @@ object PopulateSRLDataModel extends Logging {
         taOption
       }
     }).filter(_.hasView(parseViewName))
-      .foreach(populateDocument(_, isTrainingInstance = true))
+      .foreach(populateDocument(_, isTrainingInstance = false))
 
-    printNumbers(testReader, "test")
+    //printNumbers(testReader, "test")
 
     putDatasetInCache(testDatasetName, testDocuments)
     closeDatabase()
   }
 
   private var databaseInstance: Option[DB] = None
-  final def putDatasetInCache(datasetName: String, dataset: ConcurrentMap[Integer, (TextAnnotation, Array[Byte])]): Unit = {
-    openDatabase(datasetName)
-
+  final def putDatasetInCache(datasetName: String, dataset: mutable.Map[Integer, (TextAnnotation, Array[Byte])]): Unit = {
     val datasetMap = databaseInstance.map({ dataset: DB ⇒
       dataset.hashMap(datasetName, Serializer.INTEGER, Serializer.BYTE_ARRAY).createOrOpen()
     }).get
@@ -225,7 +228,7 @@ object PopulateSRLDataModel extends Logging {
     datasetMap.putAll(dataset.mapValues(_._2))
   }
 
-  final def fetchDatasetFromCache(datasetName: String): ConcurrentMap[Integer, (TextAnnotation, Array[Byte])] = {
+  final def fetchDatasetFromCache(datasetName: String): mutable.Map[Integer, (TextAnnotation, Array[Byte])] = {
     openDatabase(datasetName)
 
     val taProtoBuilder = TextAnnotationProto.newBuilder()
@@ -239,14 +242,13 @@ object PopulateSRLDataModel extends Logging {
           taProtoBuilder.mergeFrom(bytes)
           (ProtobufSerializer.readTextAnnotation(taProtoBuilder.build()), bytes)
         })
-    }).getOrElse(new ConcurrentHashMap[Integer, (TextAnnotation, Array[Byte])]())
-      .asInstanceOf[ConcurrentMap[Integer, (TextAnnotation, Array[Byte])]]
+    }).get
 
     if (instances.isEmpty) {
       logger.info("No instances found in cache.")
     }
 
-    instances
+    mutable.HashMap() ++ instances
   }
 
   final def openDatabase(datasetName: String): Unit = {
