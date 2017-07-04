@@ -90,15 +90,48 @@ class SRLMultiGraphDataModel(
         goldPredicates.exists(_.getSpan == x.getSpan)
       }
   }
+
   val predicateSenseGold = property(predicates, "s") {
     x: Constituent => x.getAttribute(AbstractSRLAnnotationReader.SenseIdentifier)
   }
 
-  val isArgumentXuGold = property(relations, "aX") {
-    x: Relation => !x.getRelationName.equals("candidate")
+  // Binary label denoting if the relation is a gold relation
+  val isArgumentXuGold = property(relations, "aX", cacheFeatureVector = cacheStaticFeatures) {
+    x: Relation => {
+      val goldView = x.getSource
+        .getTextAnnotation
+        .getView(ViewNames.SRL_VERB)
+        .asInstanceOf[PredicateArgumentView]
+
+      if (!goldView.getPredicates.asScala.exists(_.getSpan == x.getSource.getSpan)) {
+        false
+      } else {
+        goldView.getArguments(x.getSource)
+          .asScala
+          .exists(_.getTarget.getSpan == x.getTarget.getSpan)
+      }
+    }
   }
-  val argumentLabelGold = property(relations, "l") {
-    r: Relation => r.getRelationName
+
+  val argumentLabelGold = property(relations, "l", cacheFeatureVector = cacheStaticFeatures) {
+    r: Relation => {
+      val goldView = r.getSource
+        .getTextAnnotation
+        .getView(ViewNames.SRL_VERB)
+        .asInstanceOf[PredicateArgumentView]
+
+      if (!goldView.getPredicates.asScala.exists(_.getSpan == r.getSource.getSpan)) {
+        "candidate"
+      } else {
+        // Find if the relation exists in Gold view.
+        val findRelationInGold = goldView.getArguments(r.getSource)
+          .asScala
+          .find(_.getTarget.getSpan == r.getTarget.getSpan)
+
+        // If we find the relation, we label it the relation name or label it a candidate
+        findRelationInGold.map(_.getRelationName).getOrElse("candidate")
+      }
+    }
   }
 
   // Features properties
