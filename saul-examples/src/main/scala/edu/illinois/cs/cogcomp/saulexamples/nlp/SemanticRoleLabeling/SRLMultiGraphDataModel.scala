@@ -103,13 +103,15 @@ class SRLMultiGraphDataModel(
         .getView(ViewNames.SRL_VERB)
         .asInstanceOf[PredicateArgumentView]
 
-      if (!goldView.getPredicates.asScala.exists(_.getSpan == x.getSource.getSpan)) {
-        false
-      } else {
-        goldView.getArguments(x.getSource)
+      val goldPredicate = goldView.getPredicates
+        .asScala
+        .find(_.getSpan == x.getSource.getSpan)
+
+      goldPredicate.exists({ goldPred: Constituent =>
+        goldView.getArguments(goldPred)
           .asScala
           .exists(_.getTarget.getSpan == x.getTarget.getSpan)
-      }
+      })
     }
   }
 
@@ -120,17 +122,17 @@ class SRLMultiGraphDataModel(
         .getView(ViewNames.SRL_VERB)
         .asInstanceOf[PredicateArgumentView]
 
-      if (!goldView.getPredicates.asScala.exists(_.getSpan == r.getSource.getSpan)) {
-        "candidate"
-      } else {
+      val goldPredicate = goldView.getPredicates
+        .asScala
+        .find(_.getSpan == r.getSource.getSpan)
+
+      goldPredicate.flatMap({ goldPred: Constituent =>
         // Find if the relation exists in Gold view.
-        val findRelationInGold = goldView.getArguments(r.getSource)
+        goldView.getArguments(goldPred)
           .asScala
           .find(_.getTarget.getSpan == r.getTarget.getSpan)
-
-        // If we find the relation, we label it the relation name or label it a candidate
-        findRelationInGold.map(_.getRelationName).getOrElse("candidate")
-      }
+      }).map(_.getRelationName)
+        .getOrElse("candidate")
     }
   }
 
